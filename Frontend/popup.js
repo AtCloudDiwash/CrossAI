@@ -204,11 +204,15 @@ card.querySelector(`#${summarySafeId}`).addEventListener("click", (e) => {
     // Send message to content.js
     chrome.tabs.sendMessage(tabId, { action: "prepareSummary", url: tabUrl }, (response) => {
         if (response && response.success) {
+            setTimeout(() => {
             msgSpan.textContent = "Summary injected successfully ✅";
             msgSpan.style.color = "#4caf50"; // green
+            }, 1000);
         } else {
+            setTimeout(() => { 
             msgSpan.textContent = "Experiencing error, try again ❌";
             msgSpan.style.color = "#f44336"; // red
+            }, 1000);
         }
 
         // Restore button after 2 seconds

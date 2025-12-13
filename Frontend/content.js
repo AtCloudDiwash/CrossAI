@@ -1,5 +1,6 @@
 console.log("Content.js loaded");
 
+const API_SERVER_ENDPOINT = "http://127.0.0.1:8000/generate_echo"
 // ============================================================================
 // PLATFORM DETECTION
 // ============================================================================
@@ -141,7 +142,7 @@ async function prepareSummary(url) {
 
     try {
         // Send to FastAPI endpoint
-        const response = await fetch("http://127.0.0.1:8000/generate_echo", {
+        const response = await fetch(API_SERVER_ENDPOINT, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json"

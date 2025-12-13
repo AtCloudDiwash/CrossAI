@@ -12,3 +12,7 @@ extras
 *.vscode
 
 
+CrossAI
+
+node_modules
+*.json
