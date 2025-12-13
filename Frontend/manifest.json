@@ -16,9 +16,6 @@
     "48": "assets/crossai.png",
     "128": "assets/crossai.png"
   },
-  "background": {
-    "service_worker": "background.js"
-  },
 "content_scripts": [
   {
     "js": ["content.js"],

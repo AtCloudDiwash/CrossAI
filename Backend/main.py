@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from LLM.echo import generate_echo
-from fastapi.middleware.cors import CORSMiddleware # ⬅️ NEW IMPORT
+from fastapi.middleware.cors import CORSMiddleware 
 
 app = FastAPI()
 

@@ -1,6 +1,5 @@
 console.log("Content.js loaded");
 
-
 // ============================================================================
 // PLATFORM DETECTION
 // ============================================================================
@@ -50,6 +49,16 @@ function getStorage(url) {
     });
 }
 
+function getStoredSummary(url){
+    const key = url+" last_summary"
+    return new Promise(resolve=>{
+        chrome.storage.local.get([key], (result)=>{
+            const data = result[key] || null;
+            resolve(data);
+        });
+    });
+}
+
 function deleteStorageForCurrentURL() {
     const url = window.location.href;
     console.log(url)
@@ -80,10 +89,22 @@ function insertIntoChromeStorage(node) {
                 resolve(false);
                 return;
             }
-
             const merged = [...prev, node];
             chrome.storage.local.set({ [url]: merged }, () => {
                 console.log("Saved new node:", node.slice(0, 50) + "…");
+                resolve(true);
+            });
+        });
+    });
+}
+
+async function insertSummaryIntoChromeStorage(summary, url){
+    const key = url+" last_summary"
+    return new Promise(resolve => {
+        chrome.storage.local.get([key], result => {
+            const prev = Array.isArray(result[key]) ? result[key] : [];
+            chrome.storage.local.set({ [key]: summary }, () => {
+                console.log("Summary stored");
                 resolve(true);
             });
         });
@@ -99,6 +120,7 @@ function existsInChromeStorage(node) {
         });
     });
 }
+
 
 
 // ============================================================================
@@ -282,8 +304,7 @@ function getSelector(aiPlatform) {
     } 
     
     if (aiPlatform === "claude") {
-        const cards = document.querySelectorAll("body div.root div div.w-full.relative.min-w-0 div div.h-full.flex.flex-col.overflow-hidden div div div div.flex-1.flex.flex-col.gap-3.px-4.max-w-3xl.mx-auto.w-full.pt-1 div[data-test-render-count]");
-        const userCards = [...cards].filter((_, index) => index % 2 === 0);
+const cards = document.querySelectorAll("body > div.root > div > div.w-full.relative.min-w-0 > div > div.h-full.flex.flex-col.overflow-hidden > div > div > div > div.flex-1.flex.flex-col.px-4.max-w-3xl.mx-auto.w-full.pt-1 > div[data-test-render-count]");        const userCards = [...cards].filter((_, index) => index % 2 === 0);
         const assistantCards = [...cards].filter((_, index) => index % 2 !== 0);
         return { userCards, assistantCards };
     } 
@@ -627,6 +648,8 @@ const fetchAvailableContext = async () => {
 
 document.addEventListener("scroll", fetchAvailableContext, true);
 
+// ................. Events triggered from popup.js ................. //
+
 // ................. Injection Event ................. //
 
 
@@ -638,14 +661,27 @@ document.addEventListener("scroll", fetchAvailableContext, true);
 //   }
 // });
 
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg.action === "inject") {
+  if (msg.action == "injectRaw") {
+    console.log("Inject Raw");
     injectCode(msg.url); 
+  } else if(msg.action == "prepareSummary"){
+    injectSummary(msg.url).then(()=>{
+        sendResponse({success: true});
+    }).catch(()=>{
+        sendResponse({success: false});
+    })
+    return true;
   } else if(msg.action == "clear"){
-        deleteStorage(msg.payload.url);
-        console.log("deleted");
+    deleteStorage(msg.payload.url);
+    return true;
+  } else if(msg.action == "injectLastSummary"){
+    injectLastSummary(msg.url);
+    return true;
   }
 });
+
 
   function getEditor(site) {
     try {
@@ -664,7 +700,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
 
       const editor = document.querySelector(selector);
-      console.log(editor)
 
       if (!editor) {
         console.warn(`Editor not found for ${site} with selector: ${selector}`);
@@ -756,14 +791,43 @@ function injectContext(site, context) {
     }
   }
 
-async function injectCode(url){
-    const contextData = await getStorage(url);
-    injectContext(AI_PLATFORM, contextData.join(""));
-    prepareSummary(url)
-    .then(summary => {
-        console.log("Final Summary:", summary);
-    })
-    .catch(err => {
-        console.error("Failed to prepare summary:", err);
-    });
+async function injectCode(url) {
+    try {
+        const contextData = await getStorage(url);
+        injectContext(AI_PLATFORM, contextData.join(""));   
+
+    } catch (err) {
+        console.error("Failed to inject code:", err);
+    }
+}
+
+async function injectSummary(url){
+
+    try {
+
+        const summary = await prepareSummary(url);
+
+        const stored = await insertSummaryIntoChromeStorage(summary, url);
+        console.log("Was summary stored?", stored);
+
+        const result = await getStoredSummary(url);
+        console.log("Got stored summary:", result);
+        injectContext(AI_PLATFORM, result);
+
+    } catch (err) {
+        console.error("Failed to inject code:", err);
+    }
+
+}
+
+
+async function injectLastSummary(url) {
+    
+    try {
+        const result = await getStoredSummary(url);
+        injectContext(AI_PLATFORM, result);
+
+    } catch (err) {
+        console.error("Failed to inject code:", err);
+    }
 }

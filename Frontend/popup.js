@@ -26,6 +26,18 @@ function safeIdFromUrl(url) {
   return "id_" + btoa(url).replace(/=/g, "");
 }
 
+function safeIdFromUrlForSummary(url) {
+  return "summary_" + btoa(url).replace(/=/g, "");
+}
+
+function safeIdFromUrlForRaw(url) {
+  return "raw_" + btoa(url).replace(/=/g, "");
+}
+
+function safeIdFromUrlForLastSummary(url) {
+  return "last_summary_" + btoa(url).replace(/=/g, "");
+}
+
 
 // ---------- STORAGE ----------
 function getStoredCount(tabUrl) {
@@ -41,6 +53,15 @@ function getStoredCount(tabUrl) {
     });
   });
 }
+
+// function checkSummaryExists(tabUrl) {
+//   return new Promise(resolve => {
+//     const key = tabUrl + " last_summary";
+//     chrome.storage.local.get([key], result => {
+//       resolve(!!result[key]);
+//     });
+//   });
+// }
 
 
 // ---------- UPDATE UI COUNTERS ----------
@@ -63,6 +84,20 @@ function setSavedCount(tabUrl, count = 0) {
   }
 }
 
+async function updateSummaryButton(tabUrl) {
+  // const hasSummary = await checkSummaryExists(tabUrl);
+  const summaryBtnId = safeIdFromUrlForSummary(tabUrl);
+  const btn = document.querySelector(`#${summaryBtnId}`);
+
+  // if (btn) {
+  //   if (hasSummary) {
+  //     btn.textContent = "Inject last summary";
+  //   } else {
+  //     btn.textContent = "Prepare summary";
+  //   }
+  // }
+}
+
 
 // ---------- INIT ----------
 document.addEventListener("DOMContentLoaded", async () => {
@@ -71,17 +106,26 @@ document.addEventListener("DOMContentLoaded", async () => {
   chrome.tabs.query({}, tabs => {
     const filteredTabs = tabs.filter(tab => isSupported(tab.url));
 
-    filteredTabs.forEach(tab => {
+    filteredTabs.forEach(async (tab) => {
       const provider = getProvider(tab.url);
       if (!provider) return;
 
       const card = createCard(provider, tab.id, tab.title, tab.url);
       cardsContainer.appendChild(card);
 
-      updateSavedCount(tab.url);
+      await updateSavedCount(tab.url);
+      await updateSummaryButton(tab.url);
     });
   });
 });
+
+
+// ---------- LISTEN FOR CONTENT.JS MESSAGES ----------
+// chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+//   if (message.action === "summaryPrepared") {
+//     updateSummaryButton(message.url);
+//   }
+// });
 
 
 // ---------- HELPERS ----------
@@ -101,6 +145,9 @@ function getProvider(url) {
 // ---------- CARD CREATOR ----------
 function createCard(provider, tabId, tabTitle, tabUrl) {
   const safeId = safeIdFromUrl(tabUrl);
+  const summarySafeId = safeIdFromUrlForSummary(tabUrl);
+  const rawSafeId = safeIdFromUrlForRaw(tabUrl);
+  const lastSummarySafeId = safeIdFromUrlForLastSummary(tabUrl);
 
   const card = document.createElement("div");
   card.className = "card";
@@ -115,23 +162,87 @@ function createCard(provider, tabId, tabTitle, tabUrl) {
         <span id="${safeId}">You have saved 0 context</span>
       </div>
 
-      <button class="inject-btn" style="background:${provider.color}">
-        Inject
-      </button>
+      <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+        <button class="inject-btn" id="${summarySafeId}" style="background:${provider.color}">
+          Prepare & Inject
+        </button>
+        <div style="display: flex; gap: 12px;">
+          <span class="last-summary" id="${lastSummarySafeId}" style="text-decoration: underline; cursor: pointer; font-size: 12px; opacity: 0.7;">last summary</span>
+          <span class="inject-raw" id="${rawSafeId}" style="text-decoration: underline; cursor: pointer; font-size: 12px; opacity: 0.7;">Inject raw</span>
+        </div>
+      </div>
   `;
 
 
-  // ----- Inject Button -----
-  card.querySelector(".inject-btn").addEventListener("click", () => {
+    // ----- Action Triggering Mechanism (goest to content.js) -----
+
+
+  // ----- Inject/Summary Button -----
+card.querySelector(`#${summarySafeId}`).addEventListener("click", (e) => {
+    const btn = e.currentTarget;
+    const originalText = btn.textContent;
+
+    // If already disabled, do nothing
+    if (btn.disabled) return;
+
+    // Disable the button immediately
+    btn.disabled = true;
+    btn.textContent = "Preparing...";
+    btn.style.opacity = "0.6";
+
+    // Create or clear message span
+    let msgSpan = card.querySelector(".summary-message");
+    if (!msgSpan) {
+        msgSpan = document.createElement("span");
+        msgSpan.className = "summary-message";
+        msgSpan.style.fontSize = "12px";
+        msgSpan.style.marginTop = "5px";
+        btn.parentNode.appendChild(msgSpan);
+    }
+    msgSpan.textContent = "";
+
+    // Send message to content.js
+    chrome.tabs.sendMessage(tabId, { action: "prepareSummary", url: tabUrl }, (response) => {
+        if (response && response.success) {
+            msgSpan.textContent = "Summary injected successfully ✅";
+            msgSpan.style.color = "#4caf50"; // green
+        } else {
+            msgSpan.textContent = "Experiencing error, try again ❌";
+            msgSpan.style.color = "#f44336"; // red
+        }
+
+        // Restore button after 2 seconds
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.textContent = originalText;
+            btn.style.opacity = "1";
+        }, 2000);
+    });
+});
+
+
+
+  // ----- Prepare New -----
+  card.querySelector(`#${lastSummarySafeId}`).addEventListener("click", () => {
     const message = {
-      action: "inject",
-      provider: provider.label,
+      action: "injectLastSummary",
       url: tabUrl
     };
 
-    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+    chrome.tabs.sendMessage(tabId, message);
+  });
+
+
+  // ----- Inject Raw -----
+  card.querySelector(`.inject-raw`).addEventListener("click", () => {
+    const message = {
+      action: "injectRaw",
+      url: tabUrl
+    };
+
+      chrome.tabs.query({active: true, currentWindow: true}, tabs => {
       chrome.tabs.sendMessage(tabs[0].id, message);
-    });
+  });
   });
 
 
