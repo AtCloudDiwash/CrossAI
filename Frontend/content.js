@@ -1,6 +1,6 @@
 console.log("Content.js loaded");
 
-const API_SERVER_ENDPOINT = "http://127.0.0.1:8000/generate_echo"
+const API_SERVER_ENDPOINT = "https://crossaibackend.onrender.com/generate_echo"
 // ============================================================================
 // PLATFORM DETECTION
 // ============================================================================

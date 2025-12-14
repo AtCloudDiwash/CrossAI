@@ -201,8 +201,9 @@ card.querySelector(`#${summarySafeId}`).addEventListener("click", (e) => {
     }
     msgSpan.textContent = "";
 
-    // Send message to content.js
-    chrome.tabs.sendMessage(tabId, { action: "prepareSummary", url: tabUrl }, (response) => {
+
+    chrome.tabs.query({active: true, currentWindow: true}, tabs => {
+      chrome.tabs.sendMessage(tabs[0].id, { action: "prepareSummary", url: tabUrl }, (response) => {
         if (response && response.success) {
             setTimeout(() => {
             msgSpan.textContent = "Summary injected successfully ✅";
@@ -222,6 +223,8 @@ card.querySelector(`#${summarySafeId}`).addEventListener("click", (e) => {
             btn.style.opacity = "1";
         }, 2000);
     });
+    });
+    // Send message to content.js
 });
 
 
@@ -233,7 +236,9 @@ card.querySelector(`#${summarySafeId}`).addEventListener("click", (e) => {
       url: tabUrl
     };
 
-    chrome.tabs.sendMessage(tabId, message);
+      chrome.tabs.query({active: true, currentWindow: true}, tabs => {
+        chrome.tabs.sendMessage(tabs[0].id, message);
+      });
   });
 
 
@@ -245,8 +250,8 @@ card.querySelector(`#${summarySafeId}`).addEventListener("click", (e) => {
     };
 
       chrome.tabs.query({active: true, currentWindow: true}, tabs => {
-      chrome.tabs.sendMessage(tabs[0].id, message);
-  });
+          chrome.tabs.sendMessage(tabs[0].id, message);
+      });
   });
 
 
