@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "Cross AI",
+  "version": "1.1",
+  "description": "Cross exchange of context between AI platforms",
+  "permissions": ["storage", "tabs"],
+  "action": {
+    "default_title": "Cross AI",
+    "default_popup": "popup.html"
+  },
+  "icons": {
+    "16": "assets/crossai.png",
+    "32": "assets/crossai.png",
+    "48": "assets/crossai.png",
+    "128": "assets/crossai.png"
+  },
+  "content_scripts": [
+    {
+      "css": ["modal.css"],
+      "js": ["platforms.js", "usageLimiter.js", "content.js"],
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*.svg", "assets/*.png"],
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*"
+      ]
+    }
+  ]
+}
