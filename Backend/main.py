@@ -36,97 +36,196 @@ class InputData(BaseModel):
     text: str
 
 def custom_prompt(data: str):
+    print("This enpoint is pinged")
+    print(data)
     prompt = f'''
-You are the **Conversation State Architect** for **CrossAI**, a browser extension that transfers
-context between different AI platforms (ChatGPT → Claude → Gemini → etc.).
+        <ROLE>
 
-Your goal is to create a "state snapshot" of the conversation. This snapshot will be given
-to the next LLM, allowing it to continue the conversation as if it had been there from the start.
+            You are a smart summarization engine.
+            Your purpose is to ingest raw conversation logs between a user and an AI platform
+            (e.g., ChatGPT, Claude, Gemini) and produce a **Structured Context Handoff Summary**.
 
---------------------
-## Input Format
+            This summary must allow a secondary AI (the target AI platform) to resume the conversation
+            with perfect continuity, without losing any important details, while preserving the
+            semantic meaning, intent, constraints, and decisions of the original interaction.
 
-You will receive a raw text dump that may contain two parts:
-1.  **[Prior Summary]** (Optional): A narrative context block from a previous turn.
-2.  **[New Conversation]**: A raw text dump of the latest chat nodes.
+            The secondary AI should be able to continue as if it has seen the entire conversation.
 
-A chat node looks like: `user question: <text> assistance response: <text>`
+        </ROLE>
 
---------------------
-## Core Task
 
-1.  **Integrate**: If a `[Prior Summary]` exists, treat it as the absolute source of truth for everything that came before.
-2.  **Analyze**: Parse the `[New Conversation]` to identify the key information and flow.
-3.  **Synthesize**: Create a new, single "Narrative Context Block" that seamlessly merges the prior summary with the new information.
+        <DATAFORMAT>
 
---------------------
-## Output Requirements
+            The input consists of one or more conversation turns.
+            Each turn appears in chronological order and follows this structure:
 
--   **Format**: A single, concise "Narrative Context Block".
--   **Style**: Write in a neutral, factual, third-person narrative tone.
--   **Content**:
-    -   Preserve all important user intentions, tasks, constraints, and goals.
-    -   Preserve all critical assistant solutions, logic, code, or key decisions.
--   **Exclude**: All conversational fluff (greetings, pleasantries, confirmations), repeated information, and irrelevant metadata.
--   **CRITICAL**: Do NOT output anything else. No preamble, no analysis, no "Here is the summary". Only the Narrative Context Block.
+            user: "User message"
+            AI: "AI response"
 
---------------------
-## Examples
+            The sequence may repeat multiple times:
 
-### Example 1: First Turn (No Prior Summary)
+            user: "User message"
+            AI: "AI response"
 
-**INPUT:**
-```
-[New Conversation]
-user question: I need to write a python function that takes a list of strings and returns a list of the strings that are palindromes.
-assistance response: Sure, here is a Python function that does that:
-```python
-def find_palindromes(strings):
-    palindromes = []
-    for s in strings:
-        if s == s[::-1]:
-            palindromes.append(s)
-    return palindromes
-```
-```
+            user: "User message"
+            AI: "AI response"
+            
+            user: "User message"
+            AI: "AI response"
 
-**CORRECT OUTPUT:**
-```
-The user requested a Python function to find all palindromes in a list of strings. The assistant provided a function named `find_palindromes` that iterates through the list, checks if each string is equal to its reverse, and returns a new list containing only the palindromes.
-```
+            There may be:
+            - A single turn, or
+            - Multiple consecutive turns forming a full conversation
 
-### Example 2: Follow-up Turn (With Prior Summary)
+            You must treat all turns as a continuous interaction and summarize them
+            as a single coherent context.
 
-**INPUT:**
-```
-[Prior Summary]
-The user requested a Python function to find all palindromes in a list of strings. The assistant provided a function named `find_palindromes` that iterates through the list, checks if each string is equal to its reverse, and returns a new list containing only the palindromes.
+            The input conversation may be incomplete or out of chronological order.
+            You must infer logical and semantic chronology based on meaning, corrections,
+            and dependency — not message position.
 
-[New Conversation]
-user question: Can you make it more efficient?
-assistance response: Yes, we can use a list comprehension to make it more concise and potentially faster for very large lists.
-```python
-def find_palindromes_efficient(strings):
-    return [s for s in strings if s == s[::-1]]
-```
-```
 
-**CORRECT OUTPUT:**
-```
-The user initially requested a Python function to find palindromes in a list of strings, and the assistant provided a solution. The user then asked for a more efficient version. The assistant supplied a new function, `find_palindromes_efficient`, which uses a more concise list comprehension to accomplish the same task.
-```
+        </DATAFORMAT>
 
---------------------
-## Your Task
+        <CONSTRAINTS>
 
-Now here is the raw conversation text that you must process:
+            1. DO NOT write meta-summaries (e.g., "The user asked about...").
+            2. DO NOT explain concepts abstractly or add educational commentary.
+            3. PRESERVE all constraints, decisions, facts, goals, and instructions exactly as stated.
+            4. REMOVE conversational fluff, greetings, filler, and any content that does not affect
+            future reasoning or decision-making.
+            5. DO NOT infer, assume, guess, or invent information that is not explicitly present
+            in the conversation.
+            6. Preserve speaker authority:
+            - User instructions, constraints, and corrections are authoritative.
+            - AI responses should be summarized only as outcomes, decisions, or provided solutions.
+            7. IF information for a section is missing, write exactly:
+            "(No specific information provided in this interaction.)"
 
-```
-{data}
-```
+            8. Image handling rules:
+            - If the user query is empty or missing, assume an image may have been provided.
+            - If the AI response references an image (e.g., “the provided image”, “the image shows…”),
+                note that an image was supplied.
+            - If the AI response itself is an image generation (e.g., design, illustration, visual output),
+                record that explicitly.
+            - Do NOT describe image contents unless the AI explicitly described them.
 
-Produce the final Narrative Context Block now.
-'''
+            9. Any image-related context must be recorded only in the designated section
+                of the output schema.
+            10. If AI responses conflict with each other:
+                - Prefer later, more specific, or explicitly revised outcomes.
+                - If no clear resolution exists, preserve the uncertainty explicitly.
+            11. The input may contain only user messages or only AI messages.
+                You must still produce a valid summary using the provided schema.
+        </CONSTRAINTS>
+
+
+        <FORMAT_SCHEMA>
+
+            User Goal:
+            [Clear statement of the user’s high-level objective.]
+
+            Current State:
+            [What has already been done, answered, or decided.]
+
+            Key Decisions:
+            - [Confirmed choices or conclusions.]
+
+            Constraints & Rules:
+            - [Instructions, limitations, or requirements that must be followed strictly.]
+
+            Important Details:
+            [Technical specifics, configurations, definitions, versions, or references.]
+
+            Images / Visual Context:
+            [Indicate whether images were provided or generated, and how they were used.
+            If none, state the missing-information placeholder.]
+
+            Open Questions / Next Steps:
+            [What is still unresolved or required to proceed.]
+
+            The output MUST follow this schema exactly.
+            Do NOT add, remove, rename, or reorder sections.
+
+        </FORMAT_SCHEMA>
+
+
+        <EXAMPLE>
+
+        INPUT:
+
+        user: The system should store everything in a database.
+
+        AI: Explains a database-based storage architecture and persistence strategy.
+
+        user: No, do NOT use a database. This must be completely databaseless.
+
+        AI: Adjusts the solution to use client-side storage and avoid any server-side persistence.
+
+        OUTPUT:
+
+        User Goal:
+        Design a storage approach for the system that meets architectural requirements.
+
+        Current State:
+        The storage approach has been revised from a database-backed solution to a fully databaseless design using client-side mechanisms.
+
+        Key Decisions:
+        - The system will NOT use any database.
+        - All storage must be handled without server-side persistence.
+
+        Constraints & Rules:
+        - Do not introduce any database or server-side data storage.
+        - The solution must remain completely databaseless.
+
+        Important Details:
+        - Client-side storage mechanisms are used instead of a traditional database.
+
+        Open Questions / Next Steps:
+        (No specific information provided in this interaction.)
+
+        </EXAMPLE>
+
+
+        <EXAMPLE>
+
+        INPUT:
+
+        user:
+        Why is the design in this image faulty?
+        (User provided an image.)
+
+        AI:
+        Describes the image layout, identifies structural weaknesses in the design, and explains why the design may fail under certain conditions.
+
+        OUTPUT:
+
+        User Goal:
+        Understand why the provided design is faulty.
+
+        Current State:
+        An image of a design was provided and analyzed for structural issues.
+
+        Key Decisions:
+        (No specific information provided in this interaction.)
+
+        Constraints & Rules:
+        (No specific information provided in this interaction.)
+
+        Important Details:
+        - The user provided an image as part of the query.
+        - The AI analyzed visual elements of the design and identified specific flaws.
+
+        Open Questions / Next Steps:
+        (No specific information provided in this interaction.)
+
+        </EXAMPLE>
+
+        # ===== BEGIN USER DATA =====
+            {data}
+        # ===== END USER DATA =====
+
+    '''
     return prompt
 
 

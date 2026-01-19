@@ -1,6 +1,6 @@
 console.log("Content.js loaded");
 
-const API_SERVER_ENDPOINT = "https://crossaibackend.onrender.com/generate_echo";
+const API_SERVER_ENDPOINT = "http://127.0.0.1:8000/generate_echo";
 
 // ============================================================================
 // PLATFORM DETECTION & CONFIGURATION
@@ -35,10 +35,10 @@ function extractRelevantTitle(text) {
 }
 
 function formatNode(userText, responseText) {
-    return {
-        user: userText,
-        assistant: { [AI_PLATFORM_ID]: responseText },
-      };
+  return {
+    user: userText,
+    assistant: { [AI_PLATFORM_ID]: responseText },
+  };
 }
 
 // ============================================================================
@@ -172,22 +172,22 @@ function insertSummaryIntoChromeStorage(summary, url) {
 }
 
 function existsInChromeStorage(node) {
-    const url = window.location.href;
-    return new Promise((resolve, reject) => {
-      try {
-        chrome.storage.local.get([url], (result) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(`Storage error: ${chrome.runtime.lastError.message}`));
-            return;
-          }
-          const stored = Array.isArray(result[url]) ? result[url] : [];
-          resolve(stored.some(item => JSON.stringify(item) === JSON.stringify(node)));
-        });
-      } catch (err) {
-        reject(err);
-      }
-    });
-  }
+  const url = window.location.href;
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.storage.local.get([url], (result) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(`Storage error: ${chrome.runtime.lastError.message}`));
+          return;
+        }
+        const stored = Array.isArray(result[url]) ? result[url] : [];
+        resolve(stored.some(item => JSON.stringify(item) === JSON.stringify(node)));
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
 
 // ============================================================================
 // BACKEND REQUESTS
@@ -204,10 +204,10 @@ async function prepareSummary(url) {
 
     // Convert structured JSON back to a string format for the backend.
     const mergedText = nodes.map(turn => {
-        const platform = Object.keys(turn.assistant)[0];
-        const response = turn.assistant[platform];
-        return `User: ${turn.user}\n${platform}'s Response: ${response}`;
-      }).join("\n\n---\n\n");
+      const platform = Object.keys(turn.assistant)[0];
+      const response = turn.assistant[platform];
+      return `User: ${turn.user}\n${platform}'s Response: ${response}`;
+    }).join("\n\n---\n\n");
 
     // Send to backend endpoint
     const response = await fetch(API_SERVER_ENDPOINT, {
@@ -275,15 +275,15 @@ class WaitingQueue {
     }
   }
 
-//   async flush() {
-//     try {
-//       for (const node of [...this.queue]) {
-//         await this.releaseToStorage(node);
-//       }
-//     } catch (err) {
-//       console.error("Error flushing queue:", err);
-//     }
-//   }
+  //   async flush() {
+  //     try {
+  //       for (const node of [...this.queue]) {
+  //         await this.releaseToStorage(node);
+  //       }
+  //     } catch (err) {
+  //       console.error("Error flushing queue:", err);
+  //     }
+  //   }
 
   getQueue() {
     return this.queue;
@@ -332,11 +332,11 @@ const blockFocus = (e) => {
 
 function getAIInputRoot() {
 
-    if (!AI_PLATFORM_CONFIG) return null;
+  if (!AI_PLATFORM_CONFIG) return null;
 
-    return document.querySelector(AI_PLATFORM_CONFIG.selectors.inputField);
+  return document.querySelector(AI_PLATFORM_CONFIG.selectors.inputField);
 
-  }
+}
 
 
 
@@ -422,51 +422,51 @@ function enableProseMirrorInput() {
 
 async function seekConversationNodeGPT() {
 
-    if (!AI_PLATFORM_CONFIG) return new Set();
+  if (!AI_PLATFORM_CONFIG) return new Set();
 
-    try {
+  try {
 
-      const nodes = new Set();
+    const nodes = new Set();
 
-      const { userCards, assistantCards } = AI_PLATFORM_CONFIG.selectors.getConversationTurns(document);
+    const { userCards, assistantCards } = AI_PLATFORM_CONFIG.selectors.getConversationTurns(document);
 
-      const count = Math.min(userCards.length, assistantCards.length);
+    const count = Math.min(userCards.length, assistantCards.length);
 
-  
 
-      for (let i = 0; i < count; i++) {
 
-        const userText = userCards[i].innerText;
+    for (let i = 0; i < count; i++) {
 
-        const assistantText = assistantCards[i].innerText;
+      const userText = userCards[i].innerText;
 
-  
+      const assistantText = assistantCards[i].innerText;
 
-        if (!assistantText) continue;
 
-  
 
-        nodes.add(formatNode(userText, assistantText));
+      if (!assistantText) continue;
 
-      }
 
-  
 
-      await waitingQueueGPT.add(nodes);
-
-      return nodes;
-
-    } catch (err) {
-
-      console.error("Error seeking conversation nodes:", err);
-
-      return new Set();
+      nodes.add(formatNode(userText, assistantText));
 
     }
 
+
+
+    await waitingQueueGPT.add(nodes);
+
+    return nodes;
+
+  } catch (err) {
+
+    console.error("Error seeking conversation nodes:", err);
+
+    return new Set();
+
   }
 
-  
+}
+
+
 
 // ============================================================================
 
@@ -478,28 +478,20 @@ async function seekConversationNodeGPT() {
 
 function createContextList() {
 
-    const crossURL = chrome.runtime.getURL("assets/cross.svg");
+  const crossURL = chrome.runtime.getURL("assets/cross.svg");
 
-    const toggleLogoURL = chrome.runtime.getURL("assets/crossai.svg");
+  const toggleLogoURL = chrome.runtime.getURL("assets/crossai.svg");
 
 
 
   const theme = {
-
     cardBg: "#111",
-
     textColor: "#ffffff",
-
     accentColor: "#4f7cff",
-
     background: "#1F1D1D",
-
     contextTitleFontSize: "15px",
-
     contextCounterFontSize: "10px",
-
     cardWidth: "450px"
-
   };
 
 
@@ -509,16 +501,10 @@ function createContextList() {
     try {
 
       const card = document.createElement("div");
-
       const { user, assistant } = turnObject;
-
       const platformId = Object.keys(assistant)[0];
-
       const platformConfig = PLATFORM_CONFIG[platformId];
-
       const responseText = assistant[platformId];
-
-
 
       Object.assign(card.style, {
 
@@ -826,7 +812,7 @@ function createContextList() {
 
       scrollListenerActive = true;
 
-      fetchAvailableContext(); 
+      fetchAvailableContext();
 
 
 
@@ -944,661 +930,308 @@ function createContextList() {
 
 function createDetailModal() {
 
-    const modalContainer = document.createElement('div');
+  const modalContainer = document.createElement('div');
 
-    modalContainer.id = 'crossai-detail-modal';
+  modalContainer.id = 'crossai-detail-modal';
 
-    Object.assign(modalContainer.style, {
+  Object.assign(modalContainer.style, {
 
-        position: 'fixed',
+    position: 'fixed',
 
-        top: 0,
+    top: 0,
 
-        left: 0,
+    left: 0,
 
-        width: '100%',
+    width: '100%',
 
-        height: '100%',
+    height: '100%',
 
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
 
-        display: 'none',
+    display: 'none',
 
-        alignItems: 'center',
+    alignItems: 'center',
 
-        justifyContent: 'center',
+    justifyContent: 'center',
 
-        zIndex: 100000,
+    zIndex: 100000,
 
-    });
+  });
 
 
 
-    const modalContent = document.createElement('div');
+  const modalContent = document.createElement('div');
 
-    Object.assign(modalContent.style, {
+  Object.assign(modalContent.style, {
 
-        background: '#1a1a1a',
+    background: '#1a1a1a',
 
-        color: 'white',
+    color: 'white',
 
-        padding: '30px',
+    padding: '30px',
 
-        borderRadius: '16px',
+    borderRadius: '16px',
 
-        width: '90%',
+    width: '90%',
 
-        maxWidth: '700px',
+    maxWidth: '700px',
 
-        maxHeight: '80vh',
+    maxHeight: '80vh',
 
-        display: 'flex',
+    display: 'flex',
 
-        flexDirection: 'column',
+    flexDirection: 'column',
 
-        gap: '20px',
+    gap: '20px',
 
-        boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
 
-    });
+  });
 
 
 
-    const modalHeader = document.createElement('div');
+  const modalHeader = document.createElement('div');
 
-    Object.assign(modalHeader.style, {
+  Object.assign(modalHeader.style, {
 
-        display: 'flex',
+    display: 'flex',
 
-        justifyContent: 'space-between',
+    justifyContent: 'space-between',
 
-        alignItems: 'center',
+    alignItems: 'center',
 
-    });
+  });
 
 
 
-    const modalTitle = document.createElement('h2');
+  const modalTitle = document.createElement('h2');
 
-    modalTitle.textContent = 'Conversation Turn';
+  modalTitle.textContent = 'Conversation Turn';
 
-    Object.assign(modalTitle.style, { margin: 0, fontSize: '24px', color: '#8265f4' });
+  Object.assign(modalTitle.style, { margin: 0, fontSize: '24px', color: '#8265f4' });
 
 
 
-    const closeModalBtn = document.createElement('button');
+  const closeModalBtn = document.createElement('button');
 
-    closeModalBtn.textContent = '×';
+  closeModalBtn.textContent = '×';
 
-    Object.assign(closeModalBtn.style, {
+  Object.assign(closeModalBtn.style, {
 
-        background: 'none',
+    background: 'none',
 
-        border: 'none',
+    border: 'none',
 
-        color: 'white',
+    color: 'white',
 
-        fontSize: '36px',
+    fontSize: '36px',
 
-        cursor: 'pointer',
+    cursor: 'pointer',
 
-        lineHeight: '1',
+    lineHeight: '1',
 
-    });
+  });
 
 
 
-    modalHeader.appendChild(modalTitle);
+  modalHeader.appendChild(modalTitle);
 
-    modalHeader.appendChild(closeModalBtn);
+  modalHeader.appendChild(closeModalBtn);
 
 
 
-    const userSection = document.createElement('div');
+  const userSection = document.createElement('div');
 
-    const userHeader = document.createElement('h3');
+  const userHeader = document.createElement('h3');
 
-    userHeader.textContent = 'Your Prompt';
+  userHeader.textContent = 'Your Prompt';
 
-    const userText = document.createElement('pre');
+  const userText = document.createElement('pre');
 
-    Object.assign(userText.style, {
+  Object.assign(userText.style, {
 
-        background: '#2a2a2a',
+    background: '#2a2a2a',
 
-        padding: '15px',
+    padding: '15px',
 
-        borderRadius: '8px',
+    borderRadius: '8px',
 
-        maxHeight: '25vh',
+    maxHeight: '25vh',
 
-        overflowY: 'auto',
+    overflowY: 'auto',
 
-        whiteSpace: 'pre-wrap',
+    whiteSpace: 'pre-wrap',
 
-        wordWrap: 'break-word',
+    wordWrap: 'break-word',
 
-        fontSize: '14px',
+    fontSize: '14px',
 
-    });
+  });
 
-    userSection.appendChild(userHeader);
+  userSection.appendChild(userHeader);
 
-    userSection.appendChild(userText);
+  userSection.appendChild(userText);
 
 
 
-    const assistantSection = document.createElement('div');
+  const assistantSection = document.createElement('div');
 
-    const assistantHeader = document.createElement('h3');
+  const assistantHeader = document.createElement('h3');
 
-    const assistantText = document.createElement('pre');
+  const assistantText = document.createElement('pre');
 
-    Object.assign(assistantText.style, {
+  Object.assign(assistantText.style, {
 
-        background: '#2a2a2a',
+    background: '#2a2a2a',
 
-        padding: '15px',
+    padding: '15px',
 
-        borderRadius: '8px',
+    borderRadius: '8px',
 
-        maxHeight: '25vh',
+    maxHeight: '25vh',
 
-        overflowY: 'auto',
+    overflowY: 'auto',
 
-        whiteSpace: 'pre-wrap',
+    whiteSpace: 'pre-wrap',
 
-        wordWrap: 'break-word',
+    wordWrap: 'break-word',
 
-        fontSize: '14px',
+    fontSize: '14px',
 
-    });
+  });
 
-    assistantSection.appendChild(assistantHeader);
+  assistantSection.appendChild(assistantHeader);
 
-    assistantSection.appendChild(assistantText);
+  assistantSection.appendChild(assistantText);
 
 
 
-    modalContent.appendChild(modalHeader);
-
-    modalContent.appendChild(userSection);
-
-    modalContent.appendChild(assistantSection);
-
-    modalContainer.appendChild(modalContent);
-
-    document.body.appendChild(modalContainer);
-
-
-
-    const closeModal = () => modalContainer.style.display = 'none';
-
-    closeModalBtn.onclick = closeModal;
-
-    modalContainer.onclick = (e) => {
-
-        if (e.target === modalContainer) {
-
-            closeModal();
-
-        }
-
-    };
-
-
-
-    return { modalContainer, userText, assistantHeader, assistantText };
+  modalContent.appendChild(modalHeader);
+  modalContent.appendChild(userSection);
+  modalContent.appendChild(assistantSection);
+  modalContainer.appendChild(modalContent);
+  document.body.appendChild(modalContainer);
+  
+  const closeModal = () => modalContainer.style.display = 'none';
+  closeModalBtn.onclick = closeModal;
+  modalContainer.onclick = (e) => {
+    if (e.target === modalContainer) {
+      closeModal();
+    }
+  };
+  return { modalContainer, userText, assistantHeader, assistantText };
 
 }
 
 
 
 function showDetailModal(turnObject) {
-
-    const { user, assistant } = turnObject;
-
-    const platformId = Object.keys(assistant)[0];
-
-    const platformConfig = PLATFORM_CONFIG[platformId];
-
-    const responseText = assistant[platformId];
-
-
-
-    modalElements.userText.textContent = user;
-
-    modalElements.assistantHeader.textContent = `Response from ${platformConfig.label}`;
-
-    modalElements.assistantText.textContent = responseText;
-
-    modalElements.modalContainer.style.display = 'flex';
-
+  const { user, assistant } = turnObject;
+  const platformId = Object.keys(assistant)[0];
+  const platformConfig = PLATFORM_CONFIG[platformId];
+  const responseText = assistant[platformId];
+  modalElements.userText.textContent = user;
+  modalElements.assistantHeader.textContent = `Response from ${platformConfig.label}`;
+  modalElements.assistantText.textContent = responseText;
+  modalElements.modalContainer.style.display = 'flex';
 }
-
-
-
-
 
 let fetchAvailableContext;
 
 
-
-
-
-
-
-
-
-
-
 // ============================================================================
-
-
-
-
 
 // MAIN INITIALIZATION
 
-
-
-
-
 // ============================================================================
 
 
-
-
-
-
-
-
-
-
-
 let buttonCounter = 0;
-
-
-
-
-
 let snapShot = [];
-
-
-
-
-
 let scrollListenerActive = false;
-
-
-
-
-
 let modalElements;
-
-
-
-
-
-
-
-
-
-
-
 function resetState() {
-
-
-
-
-
-    console.log("Resetting state due to navigation change...");
-
-
-
-
-
-    waitingQueueGPT.queue = [];
-
-
-
-
-
-    snapShot = [];
-
-
-
-
-
-    buttonCounter = 0;
-
-
-
-
-
-    if (uiElements && uiElements.container) {
-
-
-
-
-
-        uiElements.container.innerHTML = '';
-
-
-
-
-
-    }
-
-
-
-
+  console.log("Resetting state due to navigation change...");
+  waitingQueueGPT.queue = [];
+  snapShot = [];
+  buttonCounter = 0;
+  if (uiElements && uiElements.container) {
+    uiElements.container.innerHTML = '';
+  }
 
 }
-
-
-
-
-
-
-
-
-
-
 
 if (AI_PLATFORM_ID) {
 
+  fetchAvailableContext = async () => {
+    if (!scrollListenerActive) return;
+    try {
+      await seekConversationNodeGPT();
+      if (waitingQueueGPT.hasChanged()) {
+        const notStoredNodes = waitingQueueGPT.getQueue();
 
+        const addedNodes = notStoredNodes.filter(x => !snapShot.some(y => JSON.stringify(x) === JSON.stringify(y)));
+        snapShot = JSON.parse(JSON.stringify(notStoredNodes)); // Deep copy
 
+        for (let i = 0; i < addedNodes.length; i++) {
+          buttonCounter++;
 
+          const card = uiElements.createCard(addedNodes[i], buttonCounter);
 
-    fetchAvailableContext = async () => {
+          if (card) {
 
-
-
-
-
-        if (!scrollListenerActive) return;
-
-
-
-
-
-    
-
-
-
-
-
-        try {
-
-
-
-
-
-            await seekConversationNodeGPT();
-
-
-
-
-
-    
-
-
-
-
-
-            if (waitingQueueGPT.hasChanged()) {
-
-
-
-
-
-                const notStoredNodes = waitingQueueGPT.getQueue();
-
-
-
-
-
-                
-
-
-
-
-
-                const addedNodes = notStoredNodes.filter(x => !snapShot.some(y => JSON.stringify(x) === JSON.stringify(y)));
-
-
-
-
-
-                
-
-
-
-
-
-                snapShot = JSON.parse(JSON.stringify(notStoredNodes)); // Deep copy
-
-
-
-
-
-    
-
-
-
-
-
-                for (let i = 0; i < addedNodes.length; i++) {
-
-
-
-
-
-                    buttonCounter++;
-
-
-
-
-
-                    const card = uiElements.createCard(addedNodes[i], buttonCounter);
-
-
-
-
-
-                    if (card) {
-
-
-
-
-
-                        uiElements.container.appendChild(card);
-
-
-
-
-
-                    }
-
-
-
-
-
-                }
-
-
-
-
-
-            }
-
-
-
-
-
-        } catch (err) {
-
-
-
-
-
-            console.error("Error fetching available context:", err);
-
-
-
-
-
+            uiElements.container.appendChild(card);
+          }
         }
+      }
 
+    } catch (err) {
+      console.error("Error fetching available context:", err);
 
+    }
 
+  };
 
+  var uiElements = createContextList(fetchAvailableContext);
+  modalElements = createDetailModal();
 
-    };
+  document.addEventListener("scroll", fetchAvailableContext, true);
 
 
+  // Observer to detect chat switching in SPAs
 
 
 
 
 
+  const observer = new MutationObserver((mutations) => {
 
+    // A simple heuristic: if a lot of nodes are removed, assume it's a page change.
 
+    for (const mutation of mutations) {
 
+      if (mutation.type === 'childList' && mutation.removedNodes.length > 5) {
 
-    var uiElements = createContextList(fetchAvailableContext);
+        resetState();
+        fetchAvailableContext();
 
+        break;
+      }
+    }
 
+  });
 
+  // Start observing the body for subtree changes. This is broad, but effective for SPAs.
 
 
-    modalElements = createDetailModal();
 
 
 
+  // A more targeted element could be used if a stable one is identified.
 
-
-
-
-
-
-
-
-    document.addEventListener("scroll", fetchAvailableContext, true);
-
-
-
-
-
-
-
-
-
-
-
-    // Observer to detect chat switching in SPAs
-
-
-
-
-
-    const observer = new MutationObserver((mutations) => {
-
-
-
-
-
-        // A simple heuristic: if a lot of nodes are removed, assume it's a page change.
-
-
-
-
-
-        for (const mutation of mutations) {
-
-
-
-
-
-            if (mutation.type === 'childList' && mutation.removedNodes.length > 5) {
-
-
-
-
-
-                resetState();
-
-
-
-
-
-                fetchAvailableContext();
-
-
-
-
-
-                break;
-
-
-
-
-
-            }
-
-
-
-
-
-        }
-
-
-
-
-
-    });
-
-
-
-
-
-
-
-
-
-
-
-    // Start observing the body for subtree changes. This is broad, but effective for SPAs.
-
-
-
-
-
-    // A more targeted element could be used if a stable one is identified.
-
-
-
-
-
-    observer.observe(document.body, { childList: true, subtree: true });
-
-
-
-
-
-
-
-
-
-
+  observer.observe(document.body, { childList: true, subtree: true });
 
 }
-
-
-
-
 
 // ============================================================================
 
@@ -1618,7 +1251,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
         handlePrepareSummary(msg.url, sendResponse);
 
-        return true; 
+        return true;
 
 
 
@@ -1846,13 +1479,13 @@ function placeCursorAtEnd(el) {
 
 function getEditor() {
 
-    if (!AI_PLATFORM_CONFIG) return null;
+  if (!AI_PLATFORM_CONFIG) return null;
 
-    return document.querySelector(AI_PLATFORM_CONFIG.selectors.inputField);
+  return document.querySelector(AI_PLATFORM_CONFIG.selectors.inputField);
 
-  }
+}
 
-  
+
 
 
 
@@ -1962,13 +1595,13 @@ async function injectCode(url) {
 
     const rawText = contextData.map(turn => {
 
-        const platform = Object.keys(turn.assistant)[0];
+      const platform = Object.keys(turn.assistant)[0];
 
-        const response = turn.assistant[platform];
+      const response = turn.assistant[platform];
 
-        return `User: ${turn.user}\n${platform}'s Response: ${response}`;
+      return `User: ${turn.user}\n${platform}'s Response: ${response}`;
 
-      }).join("\n\n---\n\n");
+    }).join("\n\n---\n\n");
 
     injectContext(rawText);
 
