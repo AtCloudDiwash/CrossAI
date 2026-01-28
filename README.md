@@ -241,6 +241,6 @@ Found a bug? Have a feature request? Open an issue on GitHub!
 
 ---
 
-**Version**: 1.0  
+**Version**: 1.2  
 **Status**: Ready for Chrome Web Store  
-**Last Updated**: December 22, 2025
+**Last Updated**: January 28, 2026
