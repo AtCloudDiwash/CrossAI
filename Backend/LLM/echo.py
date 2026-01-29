@@ -15,7 +15,7 @@ generation_config = types.GenerateContentConfig(
 
 def generate_echo(prompt: str):
     response = gemini.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-3-flash-preview",
         contents=prompt,
         config=generation_config
     )
