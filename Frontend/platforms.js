@@ -72,8 +72,8 @@ const PLATFORM_CONFIG = {
       inputField: "#ask-input > p",
       getConversationTurns: (doc) => {
 
-        const userCards = document.querySelectorAll("#radix-\\:r0\\:-content-default > div > div.bg-base.erp-sidecar\\:pt-0.erp-mobile-sidecar\\:pt-0 > div > div");
-        const assistantCards = document.querySelectorAll("#radix-\\:r0\\:-content-default > div > div.gap-y-lg.flex.flex-col > div:nth-child(1) > div > div");
+        const userCards = doc.querySelectorAll("#radix-\\:r0\\:-content-default > div > div.bg-base.erp-sidecar\\:pt-0.erp-mobile-sidecar\\:pt-0")
+        const assistantCards = doc.querySelectorAll("#radix-\\:r0\\:-content-default > div > div.gap-y-lg.flex.flex-col")
 
         return { userCards, assistantCards };
       },

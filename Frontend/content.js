@@ -132,6 +132,7 @@ function insertIntoChromeStorage(node) {
           return;
         }
         const merged = [...prev, node];
+        console.log(merged)
         chrome.storage.local.set({ [url]: merged }, () => {
           if (chrome.runtime.lastError) {
             reject(new Error(`Storage error: ${chrome.runtime.lastError.message}`));
@@ -430,7 +431,6 @@ async function seekConversationNodeGPT() {
 
     const { userCards, assistantCards } = AI_PLATFORM_CONFIG.selectors.getConversationTurns(document);
     const count = Math.min(userCards.length, assistantCards.length);
-
 
     for (let i = 0; i < count; i++) {
 
