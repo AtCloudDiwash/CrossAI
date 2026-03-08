@@ -1,6 +1,6 @@
 console.log("Content.js loaded");
 
-const API_SERVER_ENDPOINT = "http://127.0.0.1:8000/generate_echo";
+const API_SERVER_ENDPOINT = "https://crossaibackend.onrender.com/generate_echo";
 
 // ============================================================================
 // PLATFORM DETECTION & CONFIGURATION
@@ -429,9 +429,7 @@ async function seekConversationNodeGPT() {
     const nodes = new Set();
 
     const { userCards, assistantCards } = AI_PLATFORM_CONFIG.selectors.getConversationTurns(document);
-
     const count = Math.min(userCards.length, assistantCards.length);
-
 
 
     for (let i = 0; i < count; i++) {
@@ -440,10 +438,7 @@ async function seekConversationNodeGPT() {
 
       const assistantText = assistantCards[i].innerText;
 
-
-
       if (!assistantText) continue;
-
 
 
       nodes.add(formatNode(userText, assistantText));
@@ -878,9 +873,9 @@ function createContextList() {
 
     position: "fixed",
 
-    bottom: "22px",
+    bottom: "120px",
 
-    right: "28px",
+    right: "40px",
 
     width: "60px",
 
@@ -1111,7 +1106,7 @@ function createDetailModal() {
   modalContent.appendChild(assistantSection);
   modalContainer.appendChild(modalContent);
   document.body.appendChild(modalContainer);
-  
+
   const closeModal = () => modalContainer.style.display = 'none';
   closeModalBtn.onclick = closeModal;
   modalContainer.onclick = (e) => {
@@ -1549,7 +1544,14 @@ function setInputText(editor, text) {
 
     if (!editor) return;
 
+    if (typeof AI_PLATFORM_ID !== "undefined" && AI_PLATFORM_ID === "perplexity") {
+      const editor = document.querySelector("#ask-input");
+      if (!editor) return;
 
+      editor.focus();
+      document.execCommand("insertText", false, text);
+      return;
+    }
 
     if (editor.isContentEditable) {
 

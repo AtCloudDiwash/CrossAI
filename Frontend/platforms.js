@@ -22,7 +22,7 @@ const PLATFORM_CONFIG = {
   },
   claude: {
     label: 'Claude',
-    color: "#643CF5",
+    color: "#c15f3c",
     domains: ['claude.ai'],
     assets: {
       icon: 'assets/claude.svg',
@@ -31,18 +31,16 @@ const PLATFORM_CONFIG = {
     selectors: {
       inputField: "div.ProseMirror[role='textbox']",
       getConversationTurns: (doc) => {
-          const cards = doc.querySelectorAll(
-            "body > div.root > div > div.w-full.relative.min-w-0 > div > div.h-full.flex.flex-col.overflow-hidden > div > div > div > div.flex-1.flex.flex-col.px-4.max-w-3xl.mx-auto.w-full.pt-1 > div[data-test-render-count]"
-          );
-          const userCards = [...cards].filter((_, index) => index % 2 === 0);
-          const assistantCards = [...cards].filter((_, index) => index % 2 !== 0);
-          return { userCards, assistantCards };
+        const cards = document.querySelectorAll("#main-content > div > div.h-full.flex.flex-col.overflow-hidden > div > div > div > div.flex-1.flex.flex-col.px-4.max-w-3xl.mx-auto.w-full.pt-1 > div");
+        const userCards = [...cards].filter((_, index) => index % 2 === 0);
+        const assistantCards = [...cards].filter((_, index) => index % 2 !== 0);
+        return { userCards, assistantCards };
       },
     },
   },
   gemini: {
     label: 'Gemini',
-    color: "#643CF5",
+    color: "#4285F4",
     domains: ['gemini.google.com'],
     assets: {
       icon: 'assets/gemini.svg',
@@ -51,15 +49,37 @@ const PLATFORM_CONFIG = {
     selectors: {
       inputField: "rich-textarea .ql-editor",
       getConversationTurns: (doc) => {
-          const cards = doc.querySelectorAll(
-            "#chat-history infinite-scroller > div:has(user-query):has(model-response)"
-          );
-          const userCards = [...cards].map((userCard) => userCard.querySelector("user-query"));
-          const assistantCards = [...cards].map((assistantCard) =>
-            assistantCard.querySelector("model-response")
-          );
-          return { userCards, assistantCards };
+        const cards = doc.querySelectorAll(
+          "#chat-history infinite-scroller > div:has(user-query):has(model-response)"
+        );
+        const userCards = [...cards].map((userCard) => userCard.querySelector("user-query"));
+        const assistantCards = [...cards].map((assistantCard) =>
+          assistantCard.querySelector("model-response")
+        );
+        return { userCards, assistantCards };
       },
     },
   },
+  perplexity: {
+    label: 'Perplexity',
+    color: "#0e2929",
+    domains: ['perplexity.ai'],
+    assets: {
+      icon: 'assets/perplexity.svg',
+      saveIcon: 'assets/save_perplexity.svg',
+    },
+    selectors: {
+      inputField: "#ask-input > p",
+      getConversationTurns: (doc) => {
+
+        const userCards = document.querySelectorAll("#radix-\\:r0\\:-content-default > div > div.bg-base.erp-sidecar\\:pt-0.erp-mobile-sidecar\\:pt-0 > div > div");
+        const assistantCards = document.querySelectorAll("#radix-\\:r0\\:-content-default > div > div.gap-y-lg.flex.flex-col > div:nth-child(1) > div > div");
+
+        return { userCards, assistantCards };
+      },
+    },
+  }
 };
+
+
+

@@ -1,7 +1,7 @@
 // usageLimiter.js
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_HITS = 3;
+const MAX_HITS = 20;
 
 function checkAndConsumeHit(callback) {
     chrome.storage.local.get(["usage"], (res) => {
