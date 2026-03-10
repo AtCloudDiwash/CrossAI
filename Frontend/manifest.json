@@ -32,7 +32,12 @@
         "https://chat.openai.com/*",
         "https://claude.ai/*",
         "https://gemini.google.com/*",
-        "https://www.perplexity.ai/*"
+        "https://www.perplexity.ai/*",
+        "https://www.deepseek.com/*",
+        "https://chat.deepseek.com/*",
+        "https://platform.deepseek.com/*",
+        "https://api.deepseek.com/*",
+        "https://notebooklm.google.com/*"
       ],
       "run_at": "document_idle"
     }
@@ -48,7 +53,10 @@
         "https://chat.openai.com/*",
         "https://claude.ai/*",
         "https://gemini.google.com/*",
-        "https://www.perplexity.ai/*"
+        "https://www.perplexity.ai/*",
+        "https://www.deepseek.com/*",
+        "https://chat.deepseek.com/*",
+        "https://notebooklm.google.com/*"
       ]
     }
   ]

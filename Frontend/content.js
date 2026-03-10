@@ -132,7 +132,6 @@ function insertIntoChromeStorage(node) {
           return;
         }
         const merged = [...prev, node];
-        console.log(merged)
         chrome.storage.local.set({ [url]: merged }, () => {
           if (chrome.runtime.lastError) {
             reject(new Error(`Storage error: ${chrome.runtime.lastError.message}`));
@@ -209,6 +208,8 @@ async function prepareSummary(url) {
       const response = turn.assistant[platform];
       return `User: ${turn.user}\n${platform}'s Response: ${response}`;
     }).join("\n\n---\n\n");
+
+    console.log(mergedText);
 
     // Send to backend endpoint
     const response = await fetch(API_SERVER_ENDPOINT, {
