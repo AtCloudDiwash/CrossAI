@@ -14,7 +14,9 @@ origins = [
     "https://chatgpt.com",
     "https://gemini.google.com",
     "https://claude.ai",
-    "https://perplexity.ai"
+    "https://perplexity.ai",
+    "https://deepseek.com",
+    "https://notebooklm.google.com"
     
     # If testing locally, you might need to allow localhost:
     "http://localhost",
