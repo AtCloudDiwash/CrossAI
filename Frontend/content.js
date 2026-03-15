@@ -1488,7 +1488,7 @@ function injectContext(context) {
 
     const userInput = getInputText(editor);
 
-    const injectedMessage = `Here is some persistent user context you should always consider:\n\n${context}\n\nUser's query:\n\n${userInput}`;
+    const injectedMessage = `Here is some persistent user context you should always consider:\n\n${context}\n\nUser's query goes here (if any):\n\n${userInput}`;
 
     setInputText(injectedMessage);
 
