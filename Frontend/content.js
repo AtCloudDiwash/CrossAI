@@ -1499,7 +1499,7 @@ function injectContext(context) {
 
     const injectedMessage = `Here is some persistent user context you should always consider:\n\n${context}\n\nUser's query:\n\n${userInput}`;
 
-    setInputText(editor, injectedMessage);
+    setInputText(injectedMessage);
 
     placeCursorAtEnd(editor);
 
@@ -1539,46 +1539,13 @@ function getInputText(editor) {
 
 
 
-function setInputText(editor, text) {
+function setInputText(text) {
 
   try {
 
-    if (!editor) return;
+    if (!AI_PLATFORM_CONFIG) return;
 
-    if (typeof AI_PLATFORM_ID !== "undefined" && AI_PLATFORM_ID === "perplexity") {
-      const editor = document.querySelector("#ask-input");
-      if (!editor) return;
-
-      editor.focus();
-      document.execCommand("insertText", false, text);
-      return;
-    }
-
-    if (editor.isContentEditable) {
-
-      editor.innerText = text;
-
-      const inputEvent = new Event("input", { bubbles: true });
-
-      editor.dispatchEvent(inputEvent);
-
-      return;
-
-    }
-
-
-
-    editor.value = text;
-
-    const inputEvent = new Event("input", { bubbles: true });
-
-    const changeEvent = new Event("change", { bubbles: true });
-
-    editor.dispatchEvent(inputEvent);
-
-    editor.dispatchEvent(changeEvent);
-
-    placeCursorAtEnd(editor);
+    AI_PLATFORM_CONFIG.selectors.setInputText(text);
 
   } catch (err) {
 

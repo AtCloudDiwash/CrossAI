@@ -11,12 +11,17 @@ const PLATFORM_CONFIG = {
     },
     selectors: {
       inputField: '#prompt-textarea',
-      // A dedicated function to handle finding conversation turns
       getConversationTurns: (doc) => {
         const cards = doc.querySelectorAll("article");
         const userCards = [...cards].filter(c => c.dataset.turn === 'user');
         const assistantCards = [...cards].filter(c => c.dataset.turn === 'assistant');
         return { userCards, assistantCards };
+      },
+      setInputText: (text) => {
+        const el = document.querySelector('#prompt-textarea');
+        if (!el) return;
+        el.innerText = text;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
       },
     },
   },
@@ -35,6 +40,12 @@ const PLATFORM_CONFIG = {
         const userCards = [...cards].filter((_, index) => index % 2 === 0);
         const assistantCards = [...cards].filter((_, index) => index % 2 !== 0);
         return { userCards, assistantCards };
+      },
+      setInputText: (text) => {
+        const el = document.querySelector("div.ProseMirror[role='textbox']");
+        if (!el) return;
+        el.innerText = text;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
       },
     },
   },
@@ -58,6 +69,12 @@ const PLATFORM_CONFIG = {
         );
         return { userCards, assistantCards };
       },
+      setInputText: (text) => {
+        const el = document.querySelector("rich-textarea .ql-editor");
+        if (!el) return;
+        el.innerText = text;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      },
     },
   },
   perplexity: {
@@ -71,11 +88,39 @@ const PLATFORM_CONFIG = {
     selectors: {
       inputField: "#ask-input > p",
       getConversationTurns: (doc) => {
+        const cards = doc.querySelectorAll("#root > div > div > div > main > div > div.mx-auto.flex.w-full.flex-col.h-full > div > div.scrollable-container.flex.flex-1.basis-0.overflow-auto.\\[scrollbar-gutter\\:stable\\].scrollbar-subtle > div > div.\\@container.isolate > div > div.mx-auto.flex.flex-col.pointer-events-auto.max-w-threadContentWidth.gap-md.md\\:gap-lg > div > div");
 
-        const userCards = doc.querySelectorAll("#radix-\\:r0\\:-content-default > div > div.bg-base.erp-sidecar\\:pt-0.erp-mobile-sidecar\\:pt-0")
-        const assistantCards = doc.querySelectorAll("#radix-\\:r0\\:-content-default > div > div.gap-y-lg.flex.flex-col")
+        const userCards = [];
+        const assistantCards = [];
+
+        cards.forEach(card => {
+          const userEl = card.querySelector(".bg-base.erp-sidecar\\:pt-0.erp-mobile-sidecar\\:pt-0");
+          const assistantEl = card.querySelector(".gap-y-lg.flex.flex-col");
+
+          if (userEl) userCards.push(userEl);
+          if (assistantEl) assistantCards.push(assistantEl);
+        });
 
         return { userCards, assistantCards };
+      },
+      setInputText: (text) => {
+        const el = document.querySelector("#ask-input");
+        if (!el) return;
+
+        el.focus();
+
+        // This is what inserts the text
+        el.dispatchEvent(new InputEvent('beforeinput', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertText',
+          data: text
+        }));
+
+        // This just notifies of change — no insertText type
+        el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+
+        el.dispatchEvent(new Event('change', { bubbles: true }));
       },
     },
   },
@@ -88,14 +133,23 @@ const PLATFORM_CONFIG = {
       saveIcon: 'assets/save_deepseek.svg',
     },
     selectors: {
-      inputField: "#root > div > div > div.c3ecdb44 > div._7780f2e > div > div._2bd7b35 > div > div.ca1ef5b2.ds-scroll-area > div._871cbca > div.aaff8b8f > div > div > div._24fad49 > textarea",
+      inputField: "#root > div > div > div.c3ecdb44 > div._7780f2e > div > div.ds-virtual-list.ds-virtual-list--printable._2bd7b35 > div._871cbca > div.aaff8b8f > div > div > div._24fad49 > textarea",
       getConversationTurns: (doc) => {
 
-        const cards = doc.querySelectorAll("#root > div > div > div.c3ecdb44 > div._7780f2e > div > div._2bd7b35 > div > div.ca1ef5b2.ds-scroll-area > div.dad65929 > div")
+        const cards = doc.querySelectorAll("#root > div > div > div.c3ecdb44 > div._7780f2e > div > div.ds-virtual-list.ds-virtual-list--printable._2bd7b35 > div.ds-virtual-list-items > div > div")
         const userCards = [...cards].filter((_, index) => index % 2 === 0)
         const assistantCards = [...cards].filter((_, index) => index % 2 === 1);
 
         return { userCards, assistantCards };
+      },
+      setInputText: (text) => {
+        const el = document.querySelector("#root > div > div > div.c3ecdb44 > div._7780f2e > div > div.ds-virtual-list.ds-virtual-list--printable._2bd7b35 > div._871cbca > div.aaff8b8f > div > div > div._24fad49 > textarea");
+        if (!el) return;
+        el.focus();
+        el.setRangeText(text);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.setSelectionRange(el.value.length, el.value.length);
       },
     },
   },
@@ -110,12 +164,27 @@ const PLATFORM_CONFIG = {
     selectors: {
       inputField: "#mat-tab-group-0-content-1 > div > div > chat-panel > omnibar > div > div > div > query-box > div > div > form > div > textarea",
       getConversationTurns: (doc) => {
+        const cards = doc.querySelectorAll(".chat-message-pair");
 
-        const cards = doc.querySelectorAll("body > labs-tailwind-root > div > notebook > div > section.chat-panel.ng-tns-c3864633884-0 > chat-panel > div.chat-panel-content > .chat-message-pair");
-        const userCards = Array.from(cards).map(card => card.firstElementChild);
-        const assistantCards = Array.from(cards).map(card => card.children[1]);
+        const userCards = [];
+        const assistantCards = [];
+
+        cards.forEach(card => {
+          const messages = card.querySelectorAll("chat-message");
+          if (messages[0]) userCards.push(messages[0]);
+          if (messages[1]) assistantCards.push(messages[1]);
+        });
 
         return { userCards, assistantCards };
+      },
+      setInputText: (text) => {
+        const el = document.querySelector("#mat-tab-group-0-content-1 > div > div > chat-panel > omnibar > div > div > div > query-box > div > div > form > div > textarea");
+        if (!el) return;
+        el.focus();
+        el.setRangeText(text);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.setSelectionRange(el.value.length, el.value.length);
       },
     },
   }
