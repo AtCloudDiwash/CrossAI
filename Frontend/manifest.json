@@ -36,8 +36,7 @@
         "https://www.deepseek.com/*",
         "https://chat.deepseek.com/*",
         "https://platform.deepseek.com/*",
-        "https://api.deepseek.com/*",
-        "https://notebooklm.google.com/*"
+        "https://api.deepseek.com/*"
       ],
       "run_at": "document_idle"
     }
@@ -55,8 +54,7 @@
         "https://gemini.google.com/*",
         "https://www.perplexity.ai/*",
         "https://www.deepseek.com/*",
-        "https://chat.deepseek.com/*",
-        "https://notebooklm.google.com/*"
+        "https://chat.deepseek.com/*"
       ]
     }
   ]

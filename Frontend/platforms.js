@@ -153,41 +153,6 @@ const PLATFORM_CONFIG = {
       },
     },
   },
-  notebooklm: {
-    label: 'NotebookLM',
-    color: "#050b16",
-    domains: ['notebooklm.google.com'],
-    assets: {
-      icon: 'assets/notebooklm.svg',
-      saveIcon: 'assets/save_notebooklm.svg',
-    },
-    selectors: {
-      inputField: "#mat-tab-group-0-content-1 > div > div > chat-panel > omnibar > div > div > div > query-box > div > div > form > div > textarea",
-      getConversationTurns: (doc) => {
-        const cards = doc.querySelectorAll(".chat-message-pair");
-
-        const userCards = [];
-        const assistantCards = [];
-
-        cards.forEach(card => {
-          const messages = card.querySelectorAll("chat-message");
-          if (messages[0]) userCards.push(messages[0]);
-          if (messages[1]) assistantCards.push(messages[1]);
-        });
-
-        return { userCards, assistantCards };
-      },
-      setInputText: (text) => {
-        const el = document.querySelector("#mat-tab-group-0-content-1 > div > div > chat-panel > omnibar > div > div > div > query-box > div > div > form > div > textarea");
-        if (!el) return;
-        el.focus();
-        el.setRangeText(text);
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        el.setSelectionRange(el.value.length, el.value.length);
-      },
-    },
-  }
 };
 
 

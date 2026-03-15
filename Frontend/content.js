@@ -202,22 +202,13 @@ async function prepareSummary(url) {
       throw new Error("No nodes found in storage for this URL");
     }
 
-    // Convert structured JSON back to a string format for the backend.
-    const mergedText = nodes.map(turn => {
-      const platform = Object.keys(turn.assistant)[0];
-      const response = turn.assistant[platform];
-      return `User: ${turn.user}\n${platform}'s Response: ${response}`;
-    }).join("\n\n---\n\n");
-
-    console.log(mergedText);
-
     // Send to backend endpoint
     const response = await fetch(API_SERVER_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ text: mergedText })
+      body: JSON.stringify({ turns: nodes })
     });
 
     if (!response.ok) {
