@@ -481,6 +481,77 @@ function createContextList() {
     cardWidth: "450px"
   };
 
+  function launchSaveFlare(sourceElement) {
+    try {
+      if (!sourceElement) return;
+
+      const sourceRect = sourceElement.getBoundingClientRect();
+      const startX = sourceRect.left + sourceRect.width / 2;
+      const startY = sourceRect.top + sourceRect.height / 2;
+      const viewportMin = Math.min(window.innerWidth, window.innerHeight);
+      const jitterRange = viewportMin * 0.1;
+      const rightInset = window.innerWidth * 0.1;
+      const endX = Math.min(
+        window.innerWidth - 48,
+        Math.max(48, window.innerWidth - rightInset + (Math.random() - 0.5) * jitterRange)
+      );
+      const endY = -10;
+      const flare = document.createElement("div");
+
+      Object.assign(flare.style, {
+        position: "fixed",
+        left: `${startX}px`,
+        top: `${startY}px`,
+        width: "14px",
+        height: "14px",
+        borderRadius: "50%",
+        background: "radial-gradient(circle, #ffffff 0%, #BBA9FF 24%, #643CF5 62%, rgba(100, 60, 245, 0) 100%)",
+        boxShadow: "0 0 8px 3px rgba(255, 255, 255, 0.45), 0 0 18px 8px rgba(100, 60, 245, 0.68), 0 0 34px 14px rgba(100, 60, 245, 0.28)",
+        pointerEvents: "none",
+        zIndex: "100001",
+        transform: "translate(-50%, -50%) scale(1)",
+        opacity: "1"
+      });
+
+      document.body.appendChild(flare);
+
+      const animation = flare.animate(
+        [
+          {
+            transform: "translate(-50%, -50%) scale(1)",
+            opacity: 1,
+            offset: 0
+          },
+          {
+            transform: `translate(calc(-50% + ${endX - startX}px), calc(-50% + ${endY - startY}px)) scale(0.85)`,
+            opacity: 1,
+            offset: 0.62
+          },
+          {
+            transform: `translate(calc(-50% + ${endX - startX}px), calc(-50% + ${endY - startY}px)) scale(1.15)`,
+            opacity: 0.9,
+            offset: 0.78
+          },
+          {
+            transform: `translate(calc(-50% + ${endX - startX}px), calc(-50% + ${endY - startY}px)) scale(0.25)`,
+            opacity: 0,
+            offset: 1
+          }
+        ],
+        {
+          duration: 760,
+          easing: "cubic-bezier(0.17, 0.84, 0.44, 1)",
+          fill: "forwards"
+        }
+      );
+
+      animation.onfinish = () => flare.remove();
+      animation.oncancel = () => flare.remove();
+    } catch (err) {
+      console.warn("Save flare animation error:", err);
+    }
+  }
+
 
 
   function createCard(turnObject, contextNumber) {
@@ -654,6 +725,8 @@ function createContextList() {
       tick.onclick = (e) => {
 
         e.stopPropagation();
+
+        launchSaveFlare(tick);
 
         waitingQueueGPT.releaseToStorage(turnObject);
 
