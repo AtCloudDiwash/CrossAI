@@ -12,7 +12,7 @@ const PLATFORM_CONFIG = {
     selectors: {
       inputField: '#prompt-textarea',
       getConversationTurns: (doc) => {
-        const cards = doc.querySelectorAll("article");
+        const cards = doc.querySelectorAll("section");
         const userCards = [...cards].filter(c => c.dataset.turn === 'user');
         const assistantCards = [...cards].filter(c => c.dataset.turn === 'assistant');
         return { userCards, assistantCards };
