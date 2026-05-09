@@ -552,6 +552,10 @@ function createContextList() {
     }
   }
 
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
 
 
   function createCard(turnObject, contextNumber) {
@@ -559,6 +563,8 @@ function createContextList() {
     try {
 
       const card = document.createElement("div");
+      card.dataset.crossaiContextCard = "true";
+      card.crossaiTurnObject = turnObject;
       const { user, assistant } = turnObject;
       const platformId = Object.keys(assistant)[0];
       const platformConfig = PLATFORM_CONFIG[platformId];
@@ -705,6 +711,7 @@ function createContextList() {
 
 
       const tick = document.createElement("img");
+      tick.dataset.crossaiSaveIcon = "true";
 
       tick.src = chrome.runtime.getURL(platformConfig.assets.saveIcon);
 
@@ -856,6 +863,178 @@ function createContextList() {
 
   document.body.appendChild(container);
 
+  const saveAllControl = document.createElement("label");
+  Object.assign(saveAllControl.style, {
+    position: "fixed",
+    right: "42px",
+    bottom: "42px",
+    display: "none",
+    alignItems: "center",
+    gap: "10px",
+    padding: "12px 16px",
+    background: "rgba(17, 17, 17, 0.92)",
+    color: "#ffffff",
+    border: "1px solid rgba(255, 255, 255, 0.14)",
+    borderRadius: "14px",
+    boxShadow: "0 8px 26px rgba(0, 0, 0, 0.34)",
+    cursor: "pointer",
+    zIndex: "100000",
+    userSelect: "none",
+    fontSize: "14px",
+    fontWeight: "500"
+  });
+
+  const saveAllCheckbox = document.createElement("input");
+  saveAllCheckbox.type = "checkbox";
+  Object.assign(saveAllCheckbox.style, {
+    width: "16px",
+    height: "16px",
+    margin: "0",
+    accentColor: "#643CF5",
+    cursor: "pointer"
+  });
+
+  const saveAllText = document.createElement("span");
+  saveAllText.textContent = "Save all";
+
+  saveAllControl.appendChild(saveAllCheckbox);
+  saveAllControl.appendChild(saveAllText);
+  document.body.appendChild(saveAllControl);
+
+  function getScrollableContextTargets() {
+    const targetSet = new Set();
+    if (document.scrollingElement) {
+      targetSet.add(document.scrollingElement);
+    }
+
+    document.querySelectorAll("body *").forEach((element) => {
+      if (
+        element === container ||
+        container.contains(element) ||
+        element === saveAllControl ||
+        saveAllControl.contains(element)
+      ) {
+        return;
+      }
+
+      const scrollDistance = element.scrollHeight - element.clientHeight;
+      if (scrollDistance <= 160) return;
+
+      const style = window.getComputedStyle(element);
+      const canScroll = /(auto|scroll|overlay)/.test(style.overflowY);
+      if (canScroll) {
+        targetSet.add(element);
+      }
+    });
+
+    return Array.from(targetSet)
+      .filter(target => target && target.scrollHeight > target.clientHeight)
+      .sort((a, b) => {
+        const aDistance = a.scrollHeight - a.clientHeight;
+        const bDistance = b.scrollHeight - b.clientHeight;
+        return bDistance - aDistance;
+      })
+      .slice(0, 3);
+  }
+
+  async function scanScrollTarget(target, direction) {
+    const maxSteps = 18;
+
+    for (let step = 0; step < maxSteps; step++) {
+      const maxScrollTop = target.scrollHeight - target.clientHeight;
+      if (maxScrollTop <= 0) return;
+
+      const stepSize = Math.max(260, target.clientHeight * 0.75);
+      const nextScrollTop = direction === "up"
+        ? Math.max(0, target.scrollTop - stepSize)
+        : Math.min(maxScrollTop, target.scrollTop + stepSize);
+
+      if (Math.abs(nextScrollTop - target.scrollTop) < 1) {
+        await fetchAvailableContext();
+        return;
+      }
+
+      target.scrollTop = nextScrollTop;
+      target.dispatchEvent(new Event("scroll", { bubbles: true }));
+      await wait(130);
+      await fetchAvailableContext();
+    }
+  }
+
+  async function loadOlderAvailableContext() {
+    saveAllText.textContent = "Loading more";
+    await fetchAvailableContext();
+
+    const targets = getScrollableContextTargets();
+    for (const target of targets) {
+      await scanScrollTarget(target, "up");
+      await wait(120);
+    }
+
+    await wait(120);
+    await fetchAvailableContext();
+  }
+
+  async function saveVisibleContextCardsSequentially() {
+    saveAllCheckbox.disabled = true;
+    saveAllControl.style.cursor = "wait";
+
+    const cardsToSave = Array.from(
+      container.querySelectorAll('[data-crossai-context-card="true"]')
+    ).filter(card => card.isConnected && card.crossaiTurnObject);
+
+    if (cardsToSave.length === 0) {
+      saveAllText.textContent = "Nothing loaded";
+      await wait(500);
+    } else {
+      for (let i = 0; i < cardsToSave.length; i++) {
+        const card = cardsToSave[i];
+        if (!card.isConnected || !card.crossaiTurnObject) continue;
+
+        saveAllText.textContent = `Saving ${i + 1}/${cardsToSave.length}`;
+        const saveIcon = card.querySelector("[data-crossai-save-icon='true']");
+        launchSaveFlare(saveIcon || card);
+
+        await waitingQueueGPT.releaseToStorage(card.crossaiTurnObject);
+
+        Object.assign(card.style, {
+          opacity: "0",
+          transform: "translateX(60px)"
+        });
+
+        setTimeout(() => card.remove(), 300);
+        await wait(140);
+      }
+
+      saveAllText.textContent = "Saved all";
+      await wait(500);
+    }
+
+    await loadOlderAvailableContext();
+
+    saveAllCheckbox.checked = false;
+    saveAllCheckbox.disabled = false;
+    saveAllControl.style.cursor = "pointer";
+    saveAllText.textContent = "Save all";
+  }
+
+  saveAllCheckbox.addEventListener("change", async () => {
+    if (!saveAllCheckbox.checked || saveAllCheckbox.disabled) return;
+
+    try {
+      await saveVisibleContextCardsSequentially();
+    } catch (err) {
+      console.error("Save all error:", err);
+      saveAllCheckbox.checked = false;
+      saveAllCheckbox.disabled = false;
+      saveAllControl.style.cursor = "pointer";
+      saveAllText.textContent = "Save failed";
+      setTimeout(() => {
+        saveAllText.textContent = "Save all";
+      }, 1200);
+    }
+  });
+
 
 
   let open = false;
@@ -885,6 +1064,7 @@ function createContextList() {
       container.style.opacity = "0.3";
 
       container.style.pointerEvents = "auto";
+      saveAllControl.style.display = "flex";
 
 
 
@@ -911,6 +1091,7 @@ function createContextList() {
       container.style.transform = "translateY(calc(50vh - 50%)) translateX(0) scale(0.05)";
 
       container.style.opacity = "0";
+      saveAllControl.style.display = "none";
 
 
 
