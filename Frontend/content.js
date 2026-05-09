@@ -897,6 +897,20 @@ function createContextList() {
   const saveAllText = document.createElement("span");
   saveAllText.textContent = "Save all";
 
+  const autoSaveButton = document.createElement("button");
+  autoSaveButton.type = "button";
+  autoSaveButton.textContent = "Auto save";
+  Object.assign(autoSaveButton.style, {
+    padding: "5px 10px",
+    border: "1px solid rgba(100, 60, 245, 0.45)",
+    borderRadius: "8px",
+    background: "rgba(100, 60, 245, 0.18)",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: "600"
+  });
+
   const saveAllCancelButton = document.createElement("button");
   saveAllCancelButton.type = "button";
   saveAllCancelButton.textContent = "Cancel";
@@ -914,10 +928,18 @@ function createContextList() {
 
   saveAllControl.appendChild(saveAllCheckbox);
   saveAllControl.appendChild(saveAllText);
+  saveAllControl.appendChild(autoSaveButton);
   saveAllControl.appendChild(saveAllCancelButton);
   document.body.appendChild(saveAllControl);
 
   let saveAllCancelRequested = false;
+  let saveAllRunning = false;
+
+  function setAutoSaveButtonBusy(isBusy) {
+    autoSaveButton.disabled = isBusy;
+    autoSaveButton.style.opacity = isBusy ? "0.55" : "1";
+    autoSaveButton.style.cursor = isBusy ? "wait" : "pointer";
+  }
 
   function getScrollableContextTargets() {
     const targetSet = new Set();
@@ -957,12 +979,13 @@ function createContextList() {
 
   async function scanScrollTarget(target, direction) {
     const maxSteps = 18;
+    let moved = false;
 
     for (let step = 0; step < maxSteps; step++) {
-      if (saveAllCancelRequested) return;
+      if (saveAllCancelRequested) return moved;
 
       const maxScrollTop = target.scrollHeight - target.clientHeight;
-      if (maxScrollTop <= 0) return;
+      if (maxScrollTop <= 0) return moved;
 
       const stepSize = Math.max(260, target.clientHeight * 0.75);
       const nextScrollTop = direction === "up"
@@ -971,14 +994,40 @@ function createContextList() {
 
       if (Math.abs(nextScrollTop - target.scrollTop) < 1) {
         await fetchAvailableContext();
-        return;
+        return moved;
       }
 
       target.scrollTop = nextScrollTop;
+      moved = true;
       target.dispatchEvent(new Event("scroll", { bubbles: true }));
       await wait(130);
       await fetchAvailableContext();
     }
+
+    return moved;
+  }
+
+  async function scrollTargetOneStep(target, direction) {
+    if (saveAllCancelRequested) return false;
+
+    const maxScrollTop = target.scrollHeight - target.clientHeight;
+    if (maxScrollTop <= 0) return false;
+
+    const stepSize = Math.max(260, target.clientHeight * 0.75);
+    const nextScrollTop = direction === "up"
+      ? Math.max(0, target.scrollTop - stepSize)
+      : Math.min(maxScrollTop, target.scrollTop + stepSize);
+
+    if (Math.abs(nextScrollTop - target.scrollTop) < 1) {
+      await fetchAvailableContext();
+      return false;
+    }
+
+    target.scrollTop = nextScrollTop;
+    target.dispatchEvent(new Event("scroll", { bubbles: true }));
+    await wait(85);
+    await fetchAvailableContext();
+    return true;
   }
 
   async function loadOlderAvailableContext() {
@@ -1001,44 +1050,78 @@ function createContextList() {
     await fetchAvailableContext();
   }
 
+  async function loadNextOlderContextBatch() {
+    if (saveAllCancelRequested) return false;
+
+    saveAllText.textContent = "Loading more";
+    await fetchAvailableContext();
+
+    const targets = getScrollableContextTargets();
+    let moved = false;
+
+    for (const target of targets) {
+      if (saveAllCancelRequested) return moved;
+
+      const targetMoved = await scrollTargetOneStep(target, "up");
+      moved = moved || targetMoved;
+      await wait(70);
+    }
+
+    if (saveAllCancelRequested) return moved;
+
+    await wait(80);
+    await fetchAvailableContext();
+    return moved;
+  }
+
+  async function saveLoadedContextCardsSequentially(statusPrefix = "Saving") {
+    const cardsToSave = Array.from(
+      container.querySelectorAll('[data-crossai-context-card="true"]')
+    ).filter(card => card.isConnected && card.crossaiTurnObject);
+
+    for (let i = 0; i < cardsToSave.length; i++) {
+      if (saveAllCancelRequested) break;
+
+      const card = cardsToSave[i];
+      if (!card.isConnected || !card.crossaiTurnObject) continue;
+
+      saveAllText.textContent = `${statusPrefix} ${i + 1}/${cardsToSave.length}`;
+      const saveIcon = card.querySelector("[data-crossai-save-icon='true']");
+      launchSaveFlare(saveIcon || card);
+
+      await waitingQueueGPT.releaseToStorage(card.crossaiTurnObject);
+
+      Object.assign(card.style, {
+        opacity: "0",
+        transform: "translateX(60px)"
+      });
+
+      setTimeout(() => card.remove(), 300);
+      await wait(140);
+    }
+
+    return cardsToSave.length;
+  }
+
   async function saveVisibleContextCardsSequentially() {
+    if (saveAllRunning) return;
+
     saveAllCancelRequested = false;
+    saveAllRunning = true;
     saveAllCheckbox.disabled = true;
     saveAllControl.style.cursor = "wait";
     saveAllCancelButton.style.display = "inline-flex";
     saveAllCancelButton.disabled = false;
     saveAllCancelButton.style.opacity = "1";
     saveAllCancelButton.style.cursor = "pointer";
+    setAutoSaveButtonBusy(true);
 
-    const cardsToSave = Array.from(
-      container.querySelectorAll('[data-crossai-context-card="true"]')
-    ).filter(card => card.isConnected && card.crossaiTurnObject);
+    const savedCount = await saveLoadedContextCardsSequentially();
 
-    if (cardsToSave.length === 0) {
+    if (savedCount === 0) {
       saveAllText.textContent = "Nothing loaded";
       await wait(500);
     } else {
-      for (let i = 0; i < cardsToSave.length; i++) {
-        if (saveAllCancelRequested) break;
-
-        const card = cardsToSave[i];
-        if (!card.isConnected || !card.crossaiTurnObject) continue;
-
-        saveAllText.textContent = `Saving ${i + 1}/${cardsToSave.length}`;
-        const saveIcon = card.querySelector("[data-crossai-save-icon='true']");
-        launchSaveFlare(saveIcon || card);
-
-        await waitingQueueGPT.releaseToStorage(card.crossaiTurnObject);
-
-        Object.assign(card.style, {
-          opacity: "0",
-          transform: "translateX(60px)"
-        });
-
-        setTimeout(() => card.remove(), 300);
-        await wait(140);
-      }
-
       saveAllText.textContent = saveAllCancelRequested ? "Canceled" : "Saved all";
       await wait(500);
     }
@@ -1054,6 +1137,62 @@ function createContextList() {
     saveAllCancelButton.disabled = false;
     saveAllCancelButton.style.opacity = "1";
     saveAllCancelButton.style.cursor = "pointer";
+    setAutoSaveButtonBusy(false);
+    saveAllRunning = false;
+    saveAllText.textContent = "Save all";
+  }
+
+  async function autoSaveUntilTop() {
+    if (saveAllRunning) return;
+
+    saveAllCancelRequested = false;
+    saveAllRunning = true;
+    saveAllCheckbox.disabled = true;
+    saveAllControl.style.cursor = "wait";
+    saveAllCancelButton.style.display = "inline-flex";
+    saveAllCancelButton.disabled = false;
+    saveAllCancelButton.style.opacity = "1";
+    saveAllCancelButton.style.cursor = "pointer";
+    setAutoSaveButtonBusy(true);
+
+    try {
+      const maxRounds = 80;
+
+      for (let round = 1; round <= maxRounds; round++) {
+        if (saveAllCancelRequested) break;
+
+        const savedCount = await saveLoadedContextCardsSequentially(`Auto ${round}`);
+        if (saveAllCancelRequested) break;
+
+        const moved = await loadNextOlderContextBatch();
+        if (!moved) {
+          saveAllText.textContent = savedCount === 0 ? "Reached top" : "Saved to top";
+          await wait(700);
+          break;
+        }
+
+        await wait(90);
+      }
+
+      if (saveAllCancelRequested) {
+        saveAllText.textContent = "Canceled";
+        await wait(500);
+      }
+    } catch (err) {
+      console.error("Auto save error:", err);
+      saveAllText.textContent = "Auto failed";
+      await wait(1200);
+    }
+
+    saveAllCheckbox.checked = false;
+    saveAllCheckbox.disabled = false;
+    saveAllControl.style.cursor = "pointer";
+    saveAllCancelButton.style.display = "none";
+    saveAllCancelButton.disabled = false;
+    saveAllCancelButton.style.opacity = "1";
+    saveAllCancelButton.style.cursor = "pointer";
+    setAutoSaveButtonBusy(false);
+    saveAllRunning = false;
     saveAllText.textContent = "Save all";
   }
 
@@ -1081,11 +1220,19 @@ function createContextList() {
       saveAllCancelButton.disabled = false;
       saveAllCancelButton.style.opacity = "1";
       saveAllCancelButton.style.cursor = "pointer";
+      setAutoSaveButtonBusy(false);
+      saveAllRunning = false;
       saveAllText.textContent = "Save failed";
       setTimeout(() => {
         saveAllText.textContent = "Save all";
       }, 1200);
     }
+  });
+
+  autoSaveButton.addEventListener("click", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    await autoSaveUntilTop();
   });
 
 
