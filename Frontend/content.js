@@ -477,11 +477,11 @@ async function seekConversationNodeGPT() {
 
     for (let i = 0; i < count; i++) {
 
-      const userText = userCards[i].innerText;
+      const userText = userCards[i]?.innerText;
 
-      const assistantText = assistantCards[i].innerText;
+      const assistantText = assistantCards[i]?.innerText;
 
-      if (!assistantText) continue;
+      if (!userText || !assistantText) continue;
 
 
       nodes.add(formatNode(userText, assistantText));

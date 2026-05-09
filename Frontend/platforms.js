@@ -12,9 +12,16 @@ const PLATFORM_CONFIG = {
     selectors: {
       inputField: '#prompt-textarea',
       getConversationTurns: (doc) => {
-        const cards = doc.querySelectorAll("section");
-        const userCards = [...cards].filter(c => c.dataset.turn === 'user');
-        const assistantCards = [...cards].filter(c => c.dataset.turn === 'assistant');
+        const turnCards = [...doc.querySelectorAll("article[data-turn], section[data-turn]")];
+        let userCards = turnCards.filter(c => c.dataset.turn === 'user');
+        let assistantCards = turnCards.filter(c => c.dataset.turn === 'assistant');
+
+        if (userCards.length === 0 || assistantCards.length === 0) {
+          const roleCards = [...doc.querySelectorAll("[data-message-author-role]")];
+          userCards = roleCards.filter(c => c.getAttribute("data-message-author-role") === "user");
+          assistantCards = roleCards.filter(c => c.getAttribute("data-message-author-role") === "assistant");
+        }
+
         return { userCards, assistantCards };
       },
       setInputText: (text) => {
@@ -154,6 +161,5 @@ const PLATFORM_CONFIG = {
     },
   },
 };
-
 
 
