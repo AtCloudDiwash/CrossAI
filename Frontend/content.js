@@ -147,6 +147,43 @@ function insertIntoChromeStorage(node) {
   });
 }
 
+function insertManyIntoChromeStorage(nodes) {
+  const url = window.location.href;
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.storage.local.get([url], (result) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(`Storage error: ${chrome.runtime.lastError.message}`));
+          return;
+        }
+
+        const prev = Array.isArray(result[url]) ? result[url] : [];
+        const seen = new Set(prev.map(item => JSON.stringify(item)));
+        const merged = [...prev];
+
+        for (const node of nodes) {
+          const sig = JSON.stringify(node);
+          if (!seen.has(sig)) {
+            seen.add(sig);
+            merged.push(node);
+          }
+        }
+
+        chrome.storage.local.set({ [url]: merged }, () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(`Storage error: ${chrome.runtime.lastError.message}`));
+            return;
+          }
+          console.log("Saved context batch:", nodes);
+          resolve(true);
+        });
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 function insertSummaryIntoChromeStorage(summary, url) {
   const key = url + " last_summary";
   return new Promise((resolve, reject) => {
@@ -264,6 +301,20 @@ class WaitingQueue {
       return saved;
     } catch (err) {
       console.error("Error releasing to storage:", err);
+      return false;
+    }
+  }
+
+  async releaseManyToStorage(nodes) {
+    try {
+      const saved = await insertManyIntoChromeStorage(nodes);
+      if (saved) {
+        const savedSet = new Set(nodes.map(node => JSON.stringify(node)));
+        this.queue = this.queue.filter(n => !savedSet.has(JSON.stringify(n)));
+      }
+      return saved;
+    } catch (err) {
+      console.error("Error releasing context batch to storage:", err);
       return false;
     }
   }
@@ -574,6 +625,7 @@ function createContextList() {
     try {
 
       const card = document.createElement("div");
+      card.__crossAITurnObject = turnObject;
       const { user, assistant } = turnObject;
       const platformId = Object.keys(assistant)[0];
       const platformConfig = PLATFORM_CONFIG[platformId];
@@ -745,17 +797,7 @@ function createContextList() {
 
         waitingQueueGPT.releaseToStorage(turnObject);
 
-
-
-        Object.assign(card.style, {
-
-          opacity: "0",
-
-          transform: "translateX(60px)"
-
-        });
-
-        setTimeout(() => card.remove(), 300);
+        dismissCard(card);
 
       };
 
@@ -833,7 +875,7 @@ function createContextList() {
 
     background: "rgba(0, 0, 0, 0.65)",
 
-    padding: "30px 20px",
+    padding: "30px 20px 20px 20px",
 
     height: "60vh",
 
@@ -841,11 +883,15 @@ function createContextList() {
 
     width: "490px",
 
-    display: "inline-block",
+    display: "flex",
+
+    flexDirection: "column",
+
+    boxSizing: "border-box",
 
     overflowX: "hidden",
 
-    overflowY: "scroll",
+    overflowY: "hidden",
 
     position: "fixed",
 
@@ -870,6 +916,94 @@ function createContextList() {
 
 
   document.body.appendChild(container);
+
+  const cardsContainer = document.createElement("div");
+
+  Object.assign(cardsContainer.style, {
+
+    flex: "1 1 auto",
+
+    minHeight: "0",
+
+    overflowX: "hidden",
+
+    overflowY: "auto",
+
+    paddingBottom: "12px"
+
+  });
+
+  const saveAllBar = document.createElement("label");
+
+  Object.assign(saveAllBar.style, {
+
+    flex: "0 0 auto",
+
+    margin: "0 0 3px 0",
+
+    background: "transparent",
+
+    color: theme.textColor,
+
+    borderRadius: "18px",
+
+    padding: "3px 16px",
+
+    width: theme.cardWidth,
+
+    display: "flex",
+
+    alignItems: "center",
+
+    gap: "10px",
+
+    cursor: "pointer",
+
+    boxShadow: "0 -4px 18px rgba(0,0,0,0.25)"
+
+  });
+
+  saveAllCheckbox = document.createElement("input");
+  saveAllCheckbox.type = "checkbox";
+
+  Object.assign(saveAllCheckbox.style, {
+
+    width: "18px",
+
+    height: "18px",
+
+    cursor: "pointer",
+
+    accentColor: theme.accentColor
+
+  });
+
+  saveAllText = document.createElement("span");
+  saveAllText.textContent = "Save all";
+
+  Object.assign(saveAllText.style, {
+
+    fontSize: "14px",
+
+    fontWeight: "500",
+
+    userSelect: "none"
+
+  });
+
+  saveAllCheckbox.addEventListener("change", async (e) => {
+
+    if (!e.target.checked) return;
+
+    await saveAllVisibleContexts();
+
+  });
+
+  saveAllBar.appendChild(saveAllCheckbox);
+  saveAllBar.appendChild(saveAllText);
+
+  container.appendChild(cardsContainer);
+  container.appendChild(saveAllBar);
 
 
 
@@ -997,7 +1131,7 @@ function createContextList() {
 
 
 
-  return { container, createCard };
+  return { container, cardsContainer, createCard, resetSaveAllCheckbox, scrollToBottom };
 
 }
 
@@ -1231,7 +1365,8 @@ function resetState() {
   snapShot = [];
   buttonCounter = 0;
   if (uiElements && uiElements.container) {
-    uiElements.container.innerHTML = '';
+    uiElements.cardsContainer.replaceChildren();
+    uiElements.resetSaveAllCheckbox();
   }
 
 }
@@ -1255,7 +1390,7 @@ if (AI_PLATFORM_ID) {
 
           if (card) {
 
-            uiElements.container.appendChild(card);
+            uiElements.cardsContainer.appendChild(card);
           }
         }
       }
