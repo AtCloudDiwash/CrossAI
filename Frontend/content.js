@@ -469,6 +469,32 @@ function createContextList() {
 
   const toggleLogoURL = chrome.runtime.getURL("assets/crossai.svg");
 
+  const flareStyleId = "crossai-save-flare-style";
+
+  if (!document.getElementById(flareStyleId)) {
+
+    const style = document.createElement("style");
+    style.id = flareStyleId;
+    style.textContent = `
+      .crossai-save-flare {
+        position: fixed;
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        pointer-events: none;
+        z-index: 2147483647;
+        background:
+          radial-gradient(circle, rgba(255, 255, 255, 0.98) 0 16%, rgba(100, 60, 245, 0.96) 17% 42%, rgba(100, 60, 245, 0) 72%);
+        box-shadow:
+          0 0 12px rgba(100, 60, 245, 0.95),
+          0 0 28px rgba(130, 101, 244, 0.75);
+        will-change: left, top, opacity, transform;
+      }
+    `;
+    document.head.appendChild(style);
+
+  }
+
 
 
   const theme = {
@@ -480,6 +506,66 @@ function createContextList() {
     contextCounterFontSize: "10px",
     cardWidth: "450px"
   };
+
+
+  function launchSaveFlare(sourceEl) {
+
+    try {
+
+      const rect = sourceEl.getBoundingClientRect();
+      const startX = rect.left + rect.width / 2;
+      const startY = rect.top + rect.height / 2;
+      const extensionInsetRatio = 0.4;
+      const targetX = window.innerWidth * (1 - extensionInsetRatio);
+      const randomXSpread = window.innerWidth * 0.08;
+      const endX = Math.min(
+        window.innerWidth - 24,
+        Math.max(24, targetX + (Math.random() - 0.5) * randomXSpread)
+      );
+      const endY = 34;
+      const controlX = startX + (endX - startX) * 0.42;
+      const controlY = Math.min(startY, endY) - 170;
+      const flare = document.createElement("div");
+
+      flare.className = "crossai-save-flare";
+      flare.style.left = `${startX}px`;
+      flare.style.top = `${startY}px`;
+      flare.style.transform = "translate(-50%, -50%) scale(1)";
+
+      document.body.appendChild(flare);
+
+      const frames = [];
+
+      for (let i = 0; i <= 1; i += 0.1) {
+
+        const x = (1 - i) * (1 - i) * startX + 2 * (1 - i) * i * controlX + i * i * endX;
+        const y = (1 - i) * (1 - i) * startY + 2 * (1 - i) * i * controlY + i * i * endY;
+
+        frames.push({
+          left: `${x}px`,
+          top: `${y}px`,
+          opacity: i < 0.82 ? 1 : Math.max(0, 1 - (i - 0.82) / 0.18),
+          transform: `translate(-50%, -50%) scale(${1 - i * 0.45})`
+        });
+
+      }
+
+      const animation = flare.animate(frames, {
+        duration: 780,
+        easing: "cubic-bezier(0.19, 1, 0.22, 1)",
+        fill: "forwards"
+      });
+
+      animation.onfinish = () => flare.remove();
+      animation.oncancel = () => flare.remove();
+
+    } catch (err) {
+
+      console.warn("Save flare animation failed:", err);
+
+    }
+
+  }
 
 
 
@@ -654,6 +740,8 @@ function createContextList() {
       tick.onclick = (e) => {
 
         e.stopPropagation();
+
+        launchSaveFlare(tick);
 
         waitingQueueGPT.releaseToStorage(turnObject);
 
