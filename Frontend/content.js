@@ -147,43 +147,6 @@ function insertIntoChromeStorage(node) {
   });
 }
 
-function insertManyIntoChromeStorage(nodes) {
-  const url = window.location.href;
-  return new Promise((resolve, reject) => {
-    try {
-      chrome.storage.local.get([url], (result) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(`Storage error: ${chrome.runtime.lastError.message}`));
-          return;
-        }
-
-        const prev = Array.isArray(result[url]) ? result[url] : [];
-        const seen = new Set(prev.map(item => JSON.stringify(item)));
-        const merged = [...prev];
-
-        for (const node of nodes) {
-          const sig = JSON.stringify(node);
-          if (!seen.has(sig)) {
-            seen.add(sig);
-            merged.push(node);
-          }
-        }
-
-        chrome.storage.local.set({ [url]: merged }, () => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(`Storage error: ${chrome.runtime.lastError.message}`));
-            return;
-          }
-          console.log("Saved context batch:", nodes);
-          resolve(true);
-        });
-      });
-    } catch (err) {
-      reject(err);
-    }
-  });
-}
-
 function insertSummaryIntoChromeStorage(summary, url) {
   const key = url + " last_summary";
   return new Promise((resolve, reject) => {
@@ -301,20 +264,6 @@ class WaitingQueue {
       return saved;
     } catch (err) {
       console.error("Error releasing to storage:", err);
-      return false;
-    }
-  }
-
-  async releaseManyToStorage(nodes) {
-    try {
-      const saved = await insertManyIntoChromeStorage(nodes);
-      if (saved) {
-        const savedSet = new Set(nodes.map(node => JSON.stringify(node)));
-        this.queue = this.queue.filter(n => !savedSet.has(JSON.stringify(n)));
-      }
-      return saved;
-    } catch (err) {
-      console.error("Error releasing context batch to storage:", err);
       return false;
     }
   }
@@ -477,11 +426,11 @@ async function seekConversationNodeGPT() {
 
     for (let i = 0; i < count; i++) {
 
-      const userText = userCards[i]?.innerText;
+      const userText = userCards[i].innerText;
 
-      const assistantText = assistantCards[i]?.innerText;
+      const assistantText = assistantCards[i].innerText;
 
-      if (!userText || !assistantText) continue;
+      if (!assistantText) continue;
 
 
       nodes.add(formatNode(userText, assistantText));
@@ -520,32 +469,6 @@ function createContextList() {
 
   const toggleLogoURL = chrome.runtime.getURL("assets/crossai.svg");
 
-  const flareStyleId = "crossai-save-flare-style";
-
-  if (!document.getElementById(flareStyleId)) {
-
-    const style = document.createElement("style");
-    style.id = flareStyleId;
-    style.textContent = `
-      .crossai-save-flare {
-        position: fixed;
-        width: 16px;
-        height: 16px;
-        border-radius: 999px;
-        pointer-events: none;
-        z-index: 2147483647;
-        background:
-          radial-gradient(circle, rgba(255, 255, 255, 0.98) 0 16%, rgba(100, 60, 245, 0.96) 17% 42%, rgba(100, 60, 245, 0) 72%);
-        box-shadow:
-          0 0 12px rgba(100, 60, 245, 0.95),
-          0 0 28px rgba(130, 101, 244, 0.75);
-        will-change: left, top, opacity, transform;
-      }
-    `;
-    document.head.appendChild(style);
-
-  }
-
 
 
   const theme = {
@@ -559,73 +482,12 @@ function createContextList() {
   };
 
 
-  function launchSaveFlare(sourceEl) {
-
-    try {
-
-      const rect = sourceEl.getBoundingClientRect();
-      const startX = rect.left + rect.width / 2;
-      const startY = rect.top + rect.height / 2;
-      const extensionInsetRatio = 0.4;
-      const targetX = window.innerWidth * (1 - extensionInsetRatio);
-      const randomXSpread = window.innerWidth * 0.08;
-      const endX = Math.min(
-        window.innerWidth - 24,
-        Math.max(24, targetX + (Math.random() - 0.5) * randomXSpread)
-      );
-      const endY = 34;
-      const controlX = startX + (endX - startX) * 0.42;
-      const controlY = Math.min(startY, endY) - 170;
-      const flare = document.createElement("div");
-
-      flare.className = "crossai-save-flare";
-      flare.style.left = `${startX}px`;
-      flare.style.top = `${startY}px`;
-      flare.style.transform = "translate(-50%, -50%) scale(1)";
-
-      document.body.appendChild(flare);
-
-      const frames = [];
-
-      for (let i = 0; i <= 1; i += 0.1) {
-
-        const x = (1 - i) * (1 - i) * startX + 2 * (1 - i) * i * controlX + i * i * endX;
-        const y = (1 - i) * (1 - i) * startY + 2 * (1 - i) * i * controlY + i * i * endY;
-
-        frames.push({
-          left: `${x}px`,
-          top: `${y}px`,
-          opacity: i < 0.82 ? 1 : Math.max(0, 1 - (i - 0.82) / 0.18),
-          transform: `translate(-50%, -50%) scale(${1 - i * 0.45})`
-        });
-
-      }
-
-      const animation = flare.animate(frames, {
-        duration: 780,
-        easing: "cubic-bezier(0.19, 1, 0.22, 1)",
-        fill: "forwards"
-      });
-
-      animation.onfinish = () => flare.remove();
-      animation.oncancel = () => flare.remove();
-
-    } catch (err) {
-
-      console.warn("Save flare animation failed:", err);
-
-    }
-
-  }
-
-
 
   function createCard(turnObject, contextNumber) {
 
     try {
 
       const card = document.createElement("div");
-      card.__crossAITurnObject = turnObject;
       const { user, assistant } = turnObject;
       const platformId = Object.keys(assistant)[0];
       const platformConfig = PLATFORM_CONFIG[platformId];
@@ -793,11 +655,19 @@ function createContextList() {
 
         e.stopPropagation();
 
-        launchSaveFlare(tick);
-
         waitingQueueGPT.releaseToStorage(turnObject);
 
-        dismissCard(card);
+
+
+        Object.assign(card.style, {
+
+          opacity: "0",
+
+          transform: "translateX(60px)"
+
+        });
+
+        setTimeout(() => card.remove(), 300);
 
       };
 
@@ -875,7 +745,7 @@ function createContextList() {
 
     background: "rgba(0, 0, 0, 0.65)",
 
-    padding: "30px 20px 20px 20px",
+    padding: "30px 20px",
 
     height: "60vh",
 
@@ -883,15 +753,11 @@ function createContextList() {
 
     width: "490px",
 
-    display: "flex",
-
-    flexDirection: "column",
-
-    boxSizing: "border-box",
+    display: "inline-block",
 
     overflowX: "hidden",
 
-    overflowY: "hidden",
+    overflowY: "scroll",
 
     position: "fixed",
 
@@ -916,94 +782,6 @@ function createContextList() {
 
 
   document.body.appendChild(container);
-
-  const cardsContainer = document.createElement("div");
-
-  Object.assign(cardsContainer.style, {
-
-    flex: "1 1 auto",
-
-    minHeight: "0",
-
-    overflowX: "hidden",
-
-    overflowY: "auto",
-
-    paddingBottom: "12px"
-
-  });
-
-  const saveAllBar = document.createElement("label");
-
-  Object.assign(saveAllBar.style, {
-
-    flex: "0 0 auto",
-
-    margin: "0 0 3px 0",
-
-    background: "transparent",
-
-    color: theme.textColor,
-
-    borderRadius: "18px",
-
-    padding: "3px 16px",
-
-    width: theme.cardWidth,
-
-    display: "flex",
-
-    alignItems: "center",
-
-    gap: "10px",
-
-    cursor: "pointer",
-
-    boxShadow: "0 -4px 18px rgba(0,0,0,0.25)"
-
-  });
-
-  saveAllCheckbox = document.createElement("input");
-  saveAllCheckbox.type = "checkbox";
-
-  Object.assign(saveAllCheckbox.style, {
-
-    width: "18px",
-
-    height: "18px",
-
-    cursor: "pointer",
-
-    accentColor: theme.accentColor
-
-  });
-
-  saveAllText = document.createElement("span");
-  saveAllText.textContent = "Save all";
-
-  Object.assign(saveAllText.style, {
-
-    fontSize: "14px",
-
-    fontWeight: "500",
-
-    userSelect: "none"
-
-  });
-
-  saveAllCheckbox.addEventListener("change", async (e) => {
-
-    if (!e.target.checked) return;
-
-    await saveAllVisibleContexts();
-
-  });
-
-  saveAllBar.appendChild(saveAllCheckbox);
-  saveAllBar.appendChild(saveAllText);
-
-  container.appendChild(cardsContainer);
-  container.appendChild(saveAllBar);
 
 
 
@@ -1131,7 +909,7 @@ function createContextList() {
 
 
 
-  return { container, cardsContainer, createCard, resetSaveAllCheckbox, scrollToBottom };
+  return { container, createCard };
 
 }
 
@@ -1365,8 +1143,7 @@ function resetState() {
   snapShot = [];
   buttonCounter = 0;
   if (uiElements && uiElements.container) {
-    uiElements.cardsContainer.replaceChildren();
-    uiElements.resetSaveAllCheckbox();
+    uiElements.container.innerHTML = '';
   }
 
 }
@@ -1390,7 +1167,7 @@ if (AI_PLATFORM_ID) {
 
           if (card) {
 
-            uiElements.cardsContainer.appendChild(card);
+            uiElements.container.appendChild(card);
           }
         }
       }
