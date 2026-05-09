@@ -1,9 +1,17 @@
 import time
 import logging
-from fastapi import FastAPI
-from pydantic import BaseModel
+import os
+import hmac
+import requests
+from enum import Enum
+from typing import Optional
+from dotenv import load_dotenv
+from fastapi import FastAPI, Header, HTTPException, Request
+from pydantic import BaseModel, ConfigDict, Field
 from LLM.echo import generate_echo
 from fastapi.middleware.cors import CORSMiddleware 
+
+load_dotenv()
 
 app = FastAPI()
 
@@ -27,6 +35,10 @@ origins = [
     # For a browser extension accessing public domains, using specific domains is better.
 ]
 
+extension_origin = os.getenv("EXTENSION_ORIGIN")
+if extension_origin:
+    origins.append(extension_origin)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,             
@@ -37,6 +49,28 @@ app.add_middleware(
 
 class TurnData(BaseModel):
     turns: list
+
+class TelemetryEvent(str, Enum):
+    extension_opened = "extension_opened"
+    platform_detected = "platform_detected"
+    summary_endpoint_hit = "summary_endpoint_hit"
+    selector_failed = "selector_failed"
+
+class TelemetryPlatform(str, Enum):
+    chatgpt = "chatgpt"
+    claude = "claude"
+    gemini = "gemini"
+    perplexity = "perplexity"
+    deepseek = "deepseek"
+    unknown = "unknown"
+
+class TelemetryData(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    event: TelemetryEvent
+    version: Optional[str] = Field(default=None, max_length=32)
+    platform: Optional[TelemetryPlatform] = None
+    selector_area: Optional[str] = Field(default=None, max_length=64)
 
 def turns_to_text(turns: list) -> str:
     parts = []
@@ -233,6 +267,49 @@ def custom_prompt(data: str):
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("CrossAI")
 
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+TELEMETRY_TABLE = os.getenv("TELEMETRY_TABLE", "extension_telemetry")
+TELEMETRY_INGEST_TOKEN = os.getenv("TELEMETRY_INGEST_TOKEN", "")
+
+def require_telemetry_token(token: Optional[str]):
+    if not TELEMETRY_INGEST_TOKEN:
+        raise HTTPException(status_code=503, detail="telemetry_not_configured")
+
+    if not token or not hmac.compare_digest(token, TELEMETRY_INGEST_TOKEN):
+        raise HTTPException(status_code=401, detail="unauthorized")
+
+def insert_telemetry_event(data: TelemetryData):
+    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+        raise HTTPException(status_code=503, detail="telemetry_not_configured")
+
+    row = {
+        "event_name": data.event.value,
+        "extension_version": data.version,
+        "platform": data.platform.value if data.platform else None,
+        "selector_area": data.selector_area,
+    }
+
+    try:
+        response = requests.post(
+            f"{SUPABASE_URL}/rest/v1/{TELEMETRY_TABLE}",
+            headers={
+                "apikey": SUPABASE_SERVICE_ROLE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            },
+            json=row,
+            timeout=5,
+        )
+    except requests.RequestException as err:
+        logger.exception("Telemetry insert request failed")
+        raise HTTPException(status_code=502, detail="telemetry_insert_failed") from err
+
+    if response.status_code >= 400:
+        logger.error("Telemetry insert failed: %s %s", response.status_code, response.text)
+        raise HTTPException(status_code=502, detail="telemetry_insert_failed")
+
 
 @app.post("/generate_echo")
 def generate_result(data: TurnData):
@@ -247,6 +324,21 @@ def generate_result(data: TurnData):
     print(f"CrossAI took {duration}s to generate the last response")
 
     return result
+
+@app.post("/telemetry")
+def telemetry(
+    data: TelemetryData,
+    request: Request,
+    x_crossai_telemetry_key: Optional[str] = Header(default=None),
+):
+    require_telemetry_token(x_crossai_telemetry_key)
+
+    origin = request.headers.get("origin")
+    if origin and origin not in origins:
+        raise HTTPException(status_code=403, detail="origin_not_allowed")
+
+    insert_telemetry_event(data)
+    return {"ok": True}
 
 @app.get("/ping")
 async def ping():

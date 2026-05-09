@@ -22,6 +22,10 @@ function detectPlatform() {
 
 detectPlatform();
 
+if (AI_PLATFORM_ID) {
+  trackTelemetryEvent("platform_detected", { platform: AI_PLATFORM_ID });
+}
+
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
@@ -203,6 +207,10 @@ async function prepareSummary(url) {
     }
 
     // Send to backend endpoint
+    trackTelemetryEvent("summary_endpoint_hit", {
+      platform: AI_PLATFORM_ID || "unknown"
+    });
+
     const response = await fetch(API_SERVER_ENDPOINT, {
       method: "POST",
       headers: {
@@ -446,6 +454,10 @@ async function seekConversationNodeGPT() {
   } catch (err) {
 
     console.error("Error seeking conversation nodes:", err);
+    trackTelemetryEvent("selector_failed", {
+      platform: AI_PLATFORM_ID || "unknown",
+      selector_area: "conversation_turns"
+    });
 
     return new Set();
 

@@ -63,6 +63,8 @@ function setSavedCount(tabUrl, count = 0) {
 
 // ---------- INIT ----------
 document.addEventListener("DOMContentLoaded", async () => {
+  trackTelemetryEvent("extension_opened");
+
   const cardsContainer = document.getElementById("cards");
 
   try {
