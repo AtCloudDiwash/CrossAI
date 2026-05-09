@@ -863,7 +863,7 @@ function createContextList() {
 
   document.body.appendChild(container);
 
-  const saveAllControl = document.createElement("label");
+  const saveAllControl = document.createElement("div");
   Object.assign(saveAllControl.style, {
     position: "fixed",
     right: "42px",
@@ -897,9 +897,27 @@ function createContextList() {
   const saveAllText = document.createElement("span");
   saveAllText.textContent = "Save all";
 
+  const saveAllCancelButton = document.createElement("button");
+  saveAllCancelButton.type = "button";
+  saveAllCancelButton.textContent = "Cancel";
+  Object.assign(saveAllCancelButton.style, {
+    display: "none",
+    padding: "5px 10px",
+    border: "1px solid rgba(255, 255, 255, 0.18)",
+    borderRadius: "8px",
+    background: "rgba(255, 255, 255, 0.08)",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontSize: "12px",
+    fontWeight: "600"
+  });
+
   saveAllControl.appendChild(saveAllCheckbox);
   saveAllControl.appendChild(saveAllText);
+  saveAllControl.appendChild(saveAllCancelButton);
   document.body.appendChild(saveAllControl);
+
+  let saveAllCancelRequested = false;
 
   function getScrollableContextTargets() {
     const targetSet = new Set();
@@ -941,6 +959,8 @@ function createContextList() {
     const maxSteps = 18;
 
     for (let step = 0; step < maxSteps; step++) {
+      if (saveAllCancelRequested) return;
+
       const maxScrollTop = target.scrollHeight - target.clientHeight;
       if (maxScrollTop <= 0) return;
 
@@ -962,22 +982,33 @@ function createContextList() {
   }
 
   async function loadOlderAvailableContext() {
+    if (saveAllCancelRequested) return;
+
     saveAllText.textContent = "Loading more";
     await fetchAvailableContext();
 
     const targets = getScrollableContextTargets();
     for (const target of targets) {
+      if (saveAllCancelRequested) return;
+
       await scanScrollTarget(target, "up");
       await wait(120);
     }
+
+    if (saveAllCancelRequested) return;
 
     await wait(120);
     await fetchAvailableContext();
   }
 
   async function saveVisibleContextCardsSequentially() {
+    saveAllCancelRequested = false;
     saveAllCheckbox.disabled = true;
     saveAllControl.style.cursor = "wait";
+    saveAllCancelButton.style.display = "inline-flex";
+    saveAllCancelButton.disabled = false;
+    saveAllCancelButton.style.opacity = "1";
+    saveAllCancelButton.style.cursor = "pointer";
 
     const cardsToSave = Array.from(
       container.querySelectorAll('[data-crossai-context-card="true"]')
@@ -988,6 +1019,8 @@ function createContextList() {
       await wait(500);
     } else {
       for (let i = 0; i < cardsToSave.length; i++) {
+        if (saveAllCancelRequested) break;
+
         const card = cardsToSave[i];
         if (!card.isConnected || !card.crossaiTurnObject) continue;
 
@@ -1006,17 +1039,33 @@ function createContextList() {
         await wait(140);
       }
 
-      saveAllText.textContent = "Saved all";
+      saveAllText.textContent = saveAllCancelRequested ? "Canceled" : "Saved all";
       await wait(500);
     }
 
-    await loadOlderAvailableContext();
+    if (!saveAllCancelRequested) {
+      await loadOlderAvailableContext();
+    }
 
     saveAllCheckbox.checked = false;
     saveAllCheckbox.disabled = false;
     saveAllControl.style.cursor = "pointer";
+    saveAllCancelButton.style.display = "none";
+    saveAllCancelButton.disabled = false;
+    saveAllCancelButton.style.opacity = "1";
+    saveAllCancelButton.style.cursor = "pointer";
     saveAllText.textContent = "Save all";
   }
+
+  saveAllCancelButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    saveAllCancelRequested = true;
+    saveAllText.textContent = "Canceling";
+    saveAllCancelButton.disabled = true;
+    saveAllCancelButton.style.opacity = "0.65";
+    saveAllCancelButton.style.cursor = "wait";
+  });
 
   saveAllCheckbox.addEventListener("change", async () => {
     if (!saveAllCheckbox.checked || saveAllCheckbox.disabled) return;
@@ -1028,6 +1077,10 @@ function createContextList() {
       saveAllCheckbox.checked = false;
       saveAllCheckbox.disabled = false;
       saveAllControl.style.cursor = "pointer";
+      saveAllCancelButton.style.display = "none";
+      saveAllCancelButton.disabled = false;
+      saveAllCancelButton.style.opacity = "1";
+      saveAllCancelButton.style.cursor = "pointer";
       saveAllText.textContent = "Save failed";
       setTimeout(() => {
         saveAllText.textContent = "Save all";
