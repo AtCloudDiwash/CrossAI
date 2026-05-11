@@ -748,7 +748,7 @@ h1 span {
   width: min(1180px, 100%);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(260px, 0.75fr) minmax(360px, 1.25fr);
+  grid-template-columns: minmax(240px, 0.62fr) minmax(420px, 1.38fr);
   align-items: center;
   gap: clamp(24px, 5vw, 66px);
 }
@@ -759,7 +759,8 @@ h1 span {
 
 .video-shell {
   position: relative;
-  min-height: clamp(420px, 50vw, 640px);
+  aspect-ratio: 16 / 9;
+  min-height: 0;
   border: 1px solid rgba(255, 255, 255, 0.13);
   border-radius: 8px;
   overflow: hidden;
